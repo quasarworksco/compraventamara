@@ -318,7 +318,7 @@ export function EstadoVacio({
   );
 }
 
-/** Rectángulo gris que ocupa el sitio mientras Firestore responde. */
+/** Rectángulo que ocupa el sitio mientras Firestore responde. */
 export function Esqueleto({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-surface-2 ${className}`} />;
+  return <div className={`esqueleto rounded-xl ${className}`} />;
 }

@@ -36,7 +36,13 @@ export default function PaginaChat() {
                   <IconChat size={20} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-semibold text-fg">{sala.nombre}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-[15px] font-semibold text-fg">{sala.nombre}</span>
+                    <span
+                      className="pulso relative size-1.5 rounded-full bg-verde-500"
+                      aria-hidden="true"
+                    />
+                  </span>
                   <span className="clamp-1 block text-xs text-fg-muted">{sala.detalle}</span>
                 </span>
                 <IconChevronRight size={18} className="shrink-0 text-fg-subtle" />

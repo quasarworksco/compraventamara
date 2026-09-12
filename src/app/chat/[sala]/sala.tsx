@@ -55,7 +55,7 @@ export function SalaChat({ sala }: { sala: SalaId }) {
     <div className="flex min-h-dvh flex-col">
       <BarraSuperior
         titulo={definicion?.nombre ?? "Chat"}
-        subtitulo={`Se borra cada ${HORAS_DE_VIDA} h`}
+        subtitulo={`En vivo · se borra cada ${HORAS_DE_VIDA} h`}
         volverA="/chat"
       />
 
@@ -146,7 +146,7 @@ function Burbuja({
   agrupado: boolean;
 }) {
   return (
-    <div className={`flex gap-2 ${propio ? "flex-row-reverse" : ""}`}>
+    <div className={`burbuja-entra flex gap-2 ${propio ? "flex-row-reverse" : ""}`}>
       <div className="w-8 shrink-0">
         {!propio && !agrupado ? (
           <Avatar size={32} url={mensaje.autorFoto} nombre={iniciales(mensaje.autorNombre, "")} />

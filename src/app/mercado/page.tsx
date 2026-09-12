@@ -77,8 +77,12 @@ function Mercado() {
             <p className="text-xs text-fg-subtle">
               {visibles.length} {visibles.length === 1 ? "publicación" : "publicaciones"}
             </p>
-            {visibles.map((publicacion) => (
-              <TarjetaPublicacion key={publicacion.id} publicacion={publicacion} />
+            {visibles.map((publicacion, indice) => (
+              <TarjetaPublicacion
+                key={publicacion.id}
+                publicacion={publicacion}
+                indice={indice}
+              />
             ))}
             <p className="px-2 py-4 text-center text-xs text-fg-subtle">
               Los anuncios se retiran a los 30 días. Su dueño recibe aviso antes y puede

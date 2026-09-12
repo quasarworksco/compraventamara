@@ -168,8 +168,12 @@ export default function PaginaPerfil() {
             />
           ) : (
             <div className="flex flex-col gap-2.5">
-              {resto.map((publicacion) => (
-                <TarjetaPublicacion key={publicacion.id} publicacion={publicacion} />
+              {resto.map((publicacion, indice) => (
+                <TarjetaPublicacion
+                  key={publicacion.id}
+                  publicacion={publicacion}
+                  indice={indice}
+                />
               ))}
             </div>
           )}

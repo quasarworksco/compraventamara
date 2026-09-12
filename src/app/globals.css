@@ -275,3 +275,155 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------
+   Movimiento
+   ---------------------------------------------------------------
+   Tres reglas que valen para todo lo de abajo:
+     1. Nada se mueve más de lo que se nota sin mirarlo fijo.
+     2. Solo se animan `transform` y `opacity`, que el navegador resuelve
+        sin volver a calcular la página; animar `top` o `width` provoca
+        tirones en un teléfono de gama baja.
+     3. Todo queda anulado por el bloque prefers-reduced-motion del final.
+   --------------------------------------------------------------- */
+
+@layer utilities {
+  /* --- Paisaje de la portada --- */
+
+  /* El sol respira. */
+  @keyframes pm-latido {
+    0%, 100% { opacity: 0.85; transform: scale(1); }
+    50%      { opacity: 1;    transform: scale(1.04); }
+  }
+
+  .pm-sol {
+    transform-origin: 308px 58px;
+    animation: pm-latido 7s ease-in-out infinite;
+  }
+
+  /* El oleaje se desplaza justo un ciclo de la onda y vuelve a empezar,
+     de modo que el salto es invisible. */
+  @keyframes pm-corriente {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-80px); }
+  }
+
+  @keyframes pm-corriente-media {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-104px); }
+  }
+
+  @keyframes pm-corriente-lenta {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-128px); }
+  }
+
+  .pm-ola-1 { animation: pm-corriente 9s linear infinite; }
+  .pm-ola-2 { animation: pm-corriente-media 14s linear infinite; }
+  .pm-ola-3 { animation: pm-corriente-lenta 20s linear infinite; }
+
+  /* Las palmas se mecen desde el pie, no desde el centro. */
+  @keyframes pm-brisa {
+    0%, 100% { transform: rotate(-1.1deg); }
+    50%      { transform: rotate(1.4deg); }
+  }
+
+  .pm-palma {
+    transform-origin: 53px 92px;
+    animation: pm-brisa 6s ease-in-out infinite;
+  }
+
+  .pm-palma-2 {
+    transform-origin: 358px 92px;
+    animation-duration: 7.5s;
+    animation-delay: -2s;
+  }
+
+  /* Los peñeros cabecean con el oleaje. */
+  @keyframes pm-cabeceo {
+    0%, 100% { transform: translateY(0) rotate(-1.6deg); }
+    50%      { transform: translateY(-2.5px) rotate(1.6deg); }
+  }
+
+  .pm-barca {
+    transform-origin: 211px 115px;
+    animation: pm-cabeceo 5s ease-in-out infinite;
+  }
+
+  .pm-barca-2 {
+    transform-origin: 106px 128px;
+    animation-duration: 6.5s;
+    animation-delay: -1.5s;
+  }
+
+  /* --- Interfaz --- */
+
+  /* El esqueleto de carga barre un brillo en vez de solo parpadear. */
+  @keyframes destello {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+  }
+
+  .esqueleto {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--surface-2);
+  }
+
+  .esqueleto::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--surface) 70%, transparent),
+      transparent
+    );
+    animation: destello 1.6s ease-in-out infinite;
+  }
+
+  /* Aparición de una burbuja de chat: entra desde su propio lado. */
+  @keyframes burbuja {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .burbuja-entra {
+    animation: burbuja 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Punto que late junto a "en vivo". */
+  @keyframes pulso {
+    0%   { transform: scale(1);   opacity: 0.75; }
+    70%  { transform: scale(2.4); opacity: 0; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+
+  .pulso::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background-color: currentColor;
+    animation: pulso 2s ease-out infinite;
+  }
+
+  /* Brillo que cruza la cabecera muy de vez en cuando. */
+  @keyframes barrido {
+    0%, 88%, 100% { transform: translateX(-130%) skewX(-18deg); opacity: 0; }
+    92%           { opacity: 0.16; }
+    96%           { transform: translateX(130%) skewX(-18deg); opacity: 0; }
+  }
+
+  .barrido::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, #fff, transparent);
+    animation: barrido 14s ease-in-out infinite;
+    pointer-events: none;
+  }
+}

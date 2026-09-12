@@ -22,6 +22,7 @@ import {
   IconUser,
 } from "@/components/icons";
 import { Logotipo } from "@/components/logotipo";
+import { PaisajeMara } from "@/components/paisaje-mara";
 import { SeguridadPueblo } from "@/components/seguridad-pueblo";
 import { TarjetaPublicacion } from "@/components/tarjeta-publicacion";
 import { TasasDelDia } from "@/components/tasas-del-dia";
@@ -31,42 +32,56 @@ import { iniciales } from "@/lib/formato";
 import { PUEBLO } from "@/lib/pueblo";
 import { usePublicaciones } from "@/lib/publicaciones";
 
+/**
+ * Las seis secciones del pueblo.
+ *
+ * Cada una lleva su propio degradado: seis tarjetas del mismo azul se leen
+ * como un bloque, y con un acento distinto el ojo distingue de un vistazo
+ * adónde va.
+ */
 const SECCIONES = [
   {
     href: "/mercado",
     titulo: "Marketplace",
     detalle: "Vehículos, celulares y bienes",
     Icono: IconTag,
+    acento: "from-brand-500 to-brand-700",
   },
   {
     href: "/negocios",
     titulo: "Negocios",
     detalle: "Directorio del pueblo",
     Icono: IconStore,
+    acento: "from-verde-400 to-verde-600",
   },
   {
     href: "/mototaxis",
     titulo: "Mototaxis",
     detalle: "Carreras y tarifas",
     Icono: IconMoto,
+    acento: "from-brand-400 to-brand-600",
   },
   {
     href: "/dolares",
     titulo: "Dólares",
     detalle: "Efectivo en venta",
     Icono: IconDollar,
+    acento: "from-verde-500 to-brand-700",
   },
   {
     href: "/rifas",
     titulo: "Rifas",
     detalle: "Números y sorteos",
     Icono: IconTicket,
+    acento: "from-brand-600 to-brand-800",
   },
   {
     href: "/chat",
     titulo: "Chat en vivo",
     detalle: "Habla con el pueblo",
     Icono: IconChat,
+    acento: "from-verde-400 to-brand-600",
+    envivo: true,
   },
 ] as const;
 
@@ -85,8 +100,8 @@ export default function Portada() {
   return (
     <main className="flex flex-col gap-7 pb-6">
       {/* Cabecera del pueblo */}
-      <header className="cielo-mara relative overflow-hidden px-4 pb-7 pt-5 text-white">
-        <div className="flex items-center justify-between gap-3">
+      <header className="cielo-mara barrido relative overflow-hidden px-4 pb-32 pt-5 text-white">
+        <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <Logotipo blanco alto={30} />
             <p className="mt-1 text-xs text-brand-100">
@@ -115,14 +130,14 @@ export default function Portada() {
           )}
         </div>
 
-        <h1 className="asoma mt-6 text-[27px] font-bold leading-tight tracking-tight">
+        <h1 className="asoma relative z-10 mt-6 text-[27px] font-bold leading-tight tracking-tight">
           {PUEBLO.nombre}
         </h1>
-        <p className="asoma retardo-1 mt-2 max-w-md text-sm leading-relaxed text-brand-100">
+        <p className="asoma retardo-1 relative z-10 mt-2 max-w-md text-sm leading-relaxed text-brand-100">
           {PUEBLO.bienvenida}
         </p>
 
-        <form onSubmit={buscar} role="search" className="asoma retardo-2 mt-5">
+        <form onSubmit={buscar} role="search" className="asoma retardo-2 relative z-10 mt-5">
           <div className="cristal-sobre-azul flex items-center gap-2 rounded-2xl px-3.5 py-1">
             <IconSearch size={19} className="shrink-0 text-white/70" />
             <input
@@ -135,6 +150,9 @@ export default function Portada() {
             />
           </div>
         </form>
+
+        {/* El pueblo visto desde el malecón, al pie de la cabecera. */}
+        <PaisajeMara className="pointer-events-none absolute inset-x-0 bottom-0 h-32 w-full" />
       </header>
 
       {!configurado ? (
@@ -156,18 +174,28 @@ export default function Portada() {
           El comercio del pueblo
         </h2>
         <div className="grid grid-cols-2 gap-2.5">
-          {SECCIONES.map(({ href, titulo, detalle, Icono }, indice) => (
+          {SECCIONES.map((seccion, indice) => (
             <Link
-              key={href}
-              href={href}
+              key={seccion.href}
+              href={seccion.href}
               className={`tarjeta pulsable asoma retardo-${(indice % 4) + 1} flex flex-col gap-2.5 p-3.5`}
             >
-              <span className="flex size-11 items-center justify-center rounded-xl bg-linear-to-br from-brand-500 to-brand-700 text-white shadow-sm shadow-brand-700/25 ring-1 ring-white/15">
-                <Icono size={21} />
+              <span
+                className={`flex size-11 items-center justify-center rounded-xl bg-linear-to-br ${seccion.acento} text-white shadow-sm shadow-brand-700/25 ring-1 ring-white/15`}
+              >
+                <seccion.Icono size={21} />
               </span>
               <span>
-                <span className="block text-[15px] font-semibold text-fg">{titulo}</span>
-                <span className="block text-xs text-fg-muted">{detalle}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-[15px] font-semibold text-fg">{seccion.titulo}</span>
+                  {"envivo" in seccion ? (
+                    <span
+                      className="pulso relative size-1.5 rounded-full bg-verde-500"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </span>
+                <span className="block text-xs text-fg-muted">{seccion.detalle}</span>
               </span>
             </Link>
           ))}
@@ -197,8 +225,12 @@ export default function Portada() {
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">
-            {publicaciones.map((publicacion) => (
-              <TarjetaPublicacion key={publicacion.id} publicacion={publicacion} />
+            {publicaciones.map((publicacion, indice) => (
+              <TarjetaPublicacion
+                key={publicacion.id}
+                publicacion={publicacion}
+                indice={indice}
+              />
             ))}
           </div>
         )}

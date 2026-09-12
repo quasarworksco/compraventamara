@@ -4,6 +4,7 @@
 import Link from "next/link";
 
 import { formatearTasa, hace } from "@/lib/formato";
+import { useContador } from "@/lib/reloj";
 import { useTasas } from "@/lib/tasas";
 import { IconChevronRight } from "./icons";
 import { Esqueleto } from "./ui";
@@ -65,6 +66,8 @@ function TarjetaTasa({
   cargando: boolean;
   acento?: boolean;
 }) {
+  const animado = useContador(valor);
+
   return (
     <div
       className={`cristal asoma rounded-card p-3.5 ${
@@ -77,7 +80,9 @@ function TarjetaTasa({
       ) : valor === null ? (
         <p className="mt-1 text-lg font-semibold text-fg-subtle">Sin dato</p>
       ) : (
-        <p className="mt-0.5 text-xl font-bold tabular-nums text-fg">{formatearTasa(valor)}</p>
+        <p className="mt-0.5 text-xl font-bold tabular-nums text-fg">
+          {formatearTasa(animado ?? valor)}
+        </p>
       )}
       <p className="mt-0.5 text-xs text-fg-muted">{detalle}</p>
     </div>

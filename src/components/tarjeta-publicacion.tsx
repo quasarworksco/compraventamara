@@ -9,13 +9,25 @@ import type { Publicacion } from "@/lib/types";
 import { IconImage, IconPin } from "./icons";
 import { Avatar, Insignia, SelloVerificado } from "./ui";
 
-export function TarjetaPublicacion({ publicacion }: { publicacion: Publicacion }) {
+export function TarjetaPublicacion({
+  publicacion,
+  indice = 0,
+}: {
+  publicacion: Publicacion;
+  /** Posición en la lista, para escalonar la entrada. */
+  indice?: number;
+}) {
   const portada = publicacion.imagenes[0];
+
+  // Las cinco primeras entran escalonadas; de ahí en adelante, todas a la vez,
+  // para que bajar por una lista larga no se sienta lento.
+  const retardo = `${Math.min(indice, 4) * 55}ms`;
 
   return (
     <Link
       href={`/publicacion/?id=${publicacion.id}`}
       className="tarjeta pulsable asoma flex gap-3 p-2.5"
+      style={{ animationDelay: retardo }}
     >
       <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-surface-2">
         {portada ? (
