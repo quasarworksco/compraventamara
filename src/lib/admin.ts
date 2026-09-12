@@ -26,7 +26,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -185,12 +184,4 @@ export async function cambiarVerificacion(uid: string, verificado: boolean): Pro
     verificado,
     solicitaVerificacion: false,
   });
-}
-
-/** Busca el uid de un miembro por su correo de administrador, si lo tuviera. */
-export async function buscarUidPorCorreo(email: string): Promise<string | null> {
-  const correo = email.trim().toLowerCase();
-  const snapshot = await getDocs(collection(db(), "administradores"));
-  const encontrado = snapshot.docs.find((d) => (d.data() as Administrador).email === correo);
-  return encontrado ? encontrado.id : null;
 }

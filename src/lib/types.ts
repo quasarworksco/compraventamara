@@ -2,12 +2,15 @@
  * Modelo de datos de Mara Comercio (Firestore).
  *
  * Colecciones:
- *   miembros/{uid}                     perfil público de cada persona registrada
- *   contadores/miembros                correlativo para el identificador MC-00000
- *   publicaciones/{id}                 mercado, tiendas, mototaxis y dólares
- *   salas/{sala}/mensajes/{id}         chat en vivo público (se reinicia cada 36 h)
- *   chats/{chatId}                     conversación privada entre dos miembros
- *   chats/{chatId}/mensajes/{id}       mensajes privados (se reinician cada 36 h)
+ *   miembros/{uid}               perfil público de cada persona registrada
+ *   administradores/{uid}        quién puede moderar; lo reparte el correo dueño
+ *   contadores/miembros          correlativo para el identificador MC-00000
+ *   configuracion/tasas          respaldo manual del precio del dólar
+ *   publicaciones/{id}           mercado, negocios, mototaxis, divisas y rifas
+ *   salas/{sala}/mensajes/{id}   chat en vivo del pueblo (se borra cada 36 h)
+ *
+ * No hay conversaciones privadas dentro de la plataforma: el trato se cierra
+ * por WhatsApp, que es donde el pueblo ya conversa.
  */
 
 /** Los cuatro módulos del grupo. */
@@ -206,14 +209,4 @@ export interface Mensaje {
    * No se declara aquí porque la interfaz nunca lo lee: para saber si un
    * mensaje sigue vigente basta con `creadoEn`.
    */
-}
-
-export interface Chat {
-  id: string;
-  participantes: string[];
-  /** Publicación que originó la conversación, si la hubo. */
-  publicacionId?: string;
-  publicacionTitulo?: string;
-  ultimoMensaje: string;
-  actualizadoEn: number;
 }

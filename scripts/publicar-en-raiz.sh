@@ -22,7 +22,7 @@ PROTEGIDAS=(
   "package.json" "package-lock.json" "tsconfig.json" "next.config.ts"
   "postcss.config.mjs" "eslint.config.mjs" "next-env.d.ts"
   "README.md" "AGENTS.md" "CLAUDE.md" ".gitignore"
-  "firestore.rules" "firestore.indexes.json" "firebase.json"
+  "firestore.rules" "firebase.json" "pruebas"
   ".env.example" ".env.production" "CNAME" "$MANIFIESTO" "$SALIDA"
 )
 

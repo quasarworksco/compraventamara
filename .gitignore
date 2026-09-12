@@ -42,3 +42,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 out/
+
+# Registros del emulador de Firestore
+firestore-debug.log
+ui-debug.log

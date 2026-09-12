@@ -15,7 +15,6 @@ import {
   getDocs,
   limit as limitar,
   onSnapshot,
-  orderBy,
   query,
   updateDoc,
   where,
@@ -57,6 +56,15 @@ export interface ResultadoLista {
  * El estado guarda la consulta que lo produjo. Así "está cargando" se deduce
  * comparando esa clave con la actual, en vez de escribir estado dentro del
  * efecto, que provocaría un renderizado en cascada en cada cambio de filtro.
+ *
+ * La consulta no ordena en el servidor, y es a propósito. Firestore resuelve
+ * varias igualdades con los índices que mantiene solo, pero en cuanto se añade
+ * un `orderBy` sobre otro campo exige un índice compuesto que hay que crear a
+ * mano en la consola. Ordenar aquí evita ese paso de configuración y, con los
+ * pocos cientos de anuncios que mueve un pueblo, ni se nota.
+ *
+ * Si algún día el volumen crece de verdad, el cambio es desplegar los índices
+ * y devolver el `orderBy` a la consulta.
  */
 export function usePublicaciones(opciones: OpcionesLista = {}): ResultadoLista {
   const { tipo, autorUid, tope = 60 } = opciones;
@@ -75,14 +83,16 @@ export function usePublicaciones(opciones: OpcionesLista = {}): ResultadoLista {
     if (tipo) restricciones.push(where("tipo", "==", tipo));
     if (autorUid) restricciones.push(where("autorUid", "==", autorUid));
     else restricciones.push(where("estado", "==", "activa"));
-    restricciones.push(orderBy("creadaEn", "desc"), limitar(tope));
+    restricciones.push(limitar(tope));
 
     return onSnapshot(
       query(collection(db(), COLECCION), ...restricciones),
       (snapshot) => {
         setEstado({
           clave,
-          publicaciones: snapshot.docs.map((d) => ({ ...(d.data() as Publicacion), id: d.id })),
+          publicaciones: snapshot.docs
+            .map((d) => ({ ...(d.data() as Publicacion), id: d.id }))
+            .sort((a, b) => b.creadaEn - a.creadaEn),
           error: null,
         });
       },
@@ -166,7 +176,7 @@ export type BorradorPublicacion = OmitirEnCadaTipo<
  * y la ficha de un negocio del directorio no vence mientras su dueño la
  * mantenga.
  */
-export function calcularVencimiento(
+function calcularVencimiento(
   tipo: TipoPublicacion,
   datos: { fechaSorteo?: string } = {},
 ): number {
@@ -269,7 +279,7 @@ export async function confirmarDisponibilidad(id: string): Promise<void> {
  * y el resto se descarta aquí. Nadie tiene tantas publicaciones como para que
  * la diferencia se note.
  */
-export async function ofertaDolarActiva(uid: string): Promise<PublicacionDolar | null> {
+async function ofertaDolarActiva(uid: string): Promise<PublicacionDolar | null> {
   const resultado = await getDocs(
     query(collection(db(), COLECCION), where("autorUid", "==", uid), limitar(100)),
   );

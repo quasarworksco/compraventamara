@@ -9,7 +9,6 @@ import Image from "next/image";
 
 import logoColor from "../../public/logo.png";
 import logoBlanco from "../../public/logo-blanco.png";
-import etiqueta from "../../public/etiqueta.png";
 
 export function Logotipo({
   alto = 26,
@@ -31,20 +30,6 @@ export function Logotipo({
       priority
       className={className}
       style={{ height: alto, width: "auto" }}
-    />
-  );
-}
-
-/** Solo la etiqueta, para espacios cuadrados donde el logotipo no cabe. */
-export function Etiqueta({ lado = 32, className = "" }: { lado?: number; className?: string }) {
-  return (
-    <Image
-      src={etiqueta}
-      alt=""
-      width={lado}
-      height={lado}
-      className={className}
-      style={{ width: "auto", height: lado }}
     />
   );
 }

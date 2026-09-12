@@ -31,7 +31,6 @@ import {
 } from "firebase/auth";
 import {
   doc,
-  getDoc,
   onSnapshot,
   runTransaction,
   setDoc,
@@ -217,12 +216,6 @@ export function useSesion(): Sesion {
   const contexto = useContext(ContextoSesion);
   if (!contexto) throw new Error("useSesion debe usarse dentro de <ProveedorSesion>.");
   return contexto;
-}
-
-/** Lee el perfil público de cualquier miembro (para la ficha del vendedor). */
-export async function obtenerMiembro(uid: string): Promise<Miembro | null> {
-  const snapshot = await getDoc(doc(db(), "miembros", uid));
-  return snapshot.exists() ? (snapshot.data() as Miembro) : null;
 }
 
 /** Traduce los códigos de error de Firebase a algo que se entienda. */

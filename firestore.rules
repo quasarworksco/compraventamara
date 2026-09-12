@@ -24,9 +24,16 @@ service cloud.firestore {
     //
     // Se exige el correo verificado a propósito: sin esa condición, quien
     // registrase primero esa dirección en Firebase se quedaría con el mando.
+    // Se comprueba que el token traiga correo antes de leerlo: los miembros
+    // del pueblo entran con su teléfono, y sin esta guarda la regla lanzaría
+    // un error de evaluación en cada operación suya. Deniega igual, pero por
+    // accidente en vez de por decisión, y eso se rompe en cuanto algo cambie.
     function esDueno() {
       return autenticado()
+        && 'email' in request.auth.token
+        && request.auth.token.email is string
         && request.auth.token.email.lower() == 'kevinbermudez1412@gmail.com'
+        && 'email_verified' in request.auth.token
         && request.auth.token.email_verified == true;
     }
 
@@ -43,6 +50,48 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.verificado == true;
     }
 
+    /**
+     * Los datos del autor que cada publicación y cada mensaje llevan copiados
+     * dentro (nombre, apellido, teléfono, foto y el sello de verificado).
+     *
+     * Se duplican para pintar una lista sin una lectura por tarjeta, pero eso
+     * los convierte en datos que el cliente envía: sin comprobarlos, cualquiera
+     * podría publicar con el nombre y la foto de un vecino de confianza, marcarse
+     * el sello de verificado y poner su propio teléfono. En una plataforma donde
+     * la gente queda en persona con efectivo, eso es suplantación.
+     *
+     * Por eso se contrastan aquí contra el perfil real de quien escribe.
+     */
+    function autorCoincideConSuPerfil() {
+      let perfil = get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data;
+      let nuevo = request.resource.data;
+      return nuevo.autorCodigo == perfil.codigo
+        && nuevo.autorNombre == perfil.nombre
+        && nuevo.autorApellido == perfil.apellido
+        && nuevo.autorTelefono == perfil.telefono
+        && nuevo.autorFoto == perfil.fotoUrl
+        && nuevo.autorVerificado == perfil.verificado;
+    }
+
+    /** Los datos copiados del autor siguen siendo los que ya estaban guardados. */
+    function autorSinCambios() {
+      let nuevo = request.resource.data;
+      let viejo = resource.data;
+      return nuevo.autorCodigo == viejo.autorCodigo
+        && nuevo.autorNombre == viejo.autorNombre
+        && nuevo.autorApellido == viejo.autorApellido
+        && nuevo.autorTelefono == viejo.autorTelefono
+        && nuevo.autorFoto == viejo.autorFoto
+        && nuevo.autorVerificado == viejo.autorVerificado;
+    }
+
+    /** Marca de tiempo en milisegundos que de verdad corresponde a ahora. */
+    function marcaReciente(valor) {
+      return valor is int
+        && valor <= request.time.toMillis() + 120000
+        && valor >= request.time.toMillis() - 300000;
+    }
+
     function esAdmin() {
       return esDueno()
         || (autenticado()
@@ -52,7 +101,9 @@ service cloud.firestore {
     // Administradores. Solo el correo dueño reparte y retira permisos: ningún
     // administrador puede nombrar a otro ni quitarse a sí mismo del medio.
     match /administradores/{uid} {
-      allow read: if autenticado();
+      // La lista de administradores solo la ve la propia administración: no
+      // hace falta que todo el pueblo sepa a quién dirigirse para presionar.
+      allow read: if esAdmin();
       allow write: if esDueno();
     }
 
@@ -89,25 +140,52 @@ service cloud.firestore {
             || request.resource.data.ultimo == resource.data.ultimo + 1);
     }
 
+    /**
+     * El vencimiento lo escribe el cliente, así que hay que acotarlo: sin
+     * tope, una oferta de divisas podría fijarse a diez años y saltarse las
+     * seis horas que mantienen el tablón fresco.
+     */
+    function vigenciaRazonable() {
+      let tipo = request.resource.data.tipo;
+      let vence = request.resource.data.venceEn;
+      return vence is int
+        && (tipo == 'negocio'
+            || (tipo == 'dolar' && vence <= request.time.toMillis() + 25200000)
+            || (tipo != 'dolar' && vence <= request.time.toMillis() + 2764800000));
+    }
+
     // Publicaciones: mercado, negocios, mototaxis, dólares y rifas.
     match /publicaciones/{id} {
       allow read: if true;
 
       allow create: if autenticado()
         && request.resource.data.autorUid == request.auth.uid
+        && autorCoincideConSuPerfil()
         && request.resource.data.titulo is string
         && request.resource.data.titulo.size() > 0
+        && request.resource.data.titulo.size() <= 200
         && request.resource.data.tipo in ['producto', 'negocio', 'mototaxi', 'dolar', 'rifa']
-        && (request.resource.data.tipo != 'dolar' || miembroVerificado());
+        && (request.resource.data.tipo != 'dolar' || miembroVerificado())
+        // Sin esto, una fecha de creación en el futuro dejaría el anuncio
+        // clavado en el primer puesto de todos los listados para siempre.
+        && marcaReciente(request.resource.data.creadaEn)
+        && vigenciaRazonable();
 
-      // El autor puede editar y prorrogar la suya; el autor no cambia nunca,
-      // y el tipo tampoco, para que no se cuele una oferta de divisas
-      // convirtiendo en dólares un anuncio creado como otra cosa.
+      // El autor puede editar y prorrogar la suya. Nunca cambian quién firma,
+      // qué tipo es ni cuándo se creó.
+      //
+      // Los datos copiados del autor pueden quedarse como estaban o pasar a
+      // coincidir con su perfil actual, pero no inventarse: así quien cambia
+      // de teléfono puede refrescar sus anuncios, y nadie puede ponerles el
+      // nombre de otro.
       allow update: if esAdmin()
         || (esMio(resource.data.autorUid)
             && request.resource.data.autorUid == resource.data.autorUid
             && request.resource.data.tipo == resource.data.tipo
-            && (resource.data.tipo != 'dolar' || miembroVerificado()));
+            && request.resource.data.creadaEn == resource.data.creadaEn
+            && (autorSinCambios() || autorCoincideConSuPerfil())
+            && (resource.data.tipo != 'dolar' || miembroVerificado())
+            && vigenciaRazonable());
 
       allow delete: if esAdmin() || esMio(resource.data.autorUid);
     }
@@ -119,30 +197,23 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if autenticado()
+        && sala in ['general', 'mercado', 'dolar', 'mototaxis']
         && request.resource.data.autorUid == request.auth.uid
+        && request.resource.data.autorCodigo ==
+             get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.codigo
+        && request.resource.data.autorNombre ==
+             get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.nombre
         && request.resource.data.texto is string
         && request.resource.data.texto.size() <= 1000
-        && request.resource.data.expiraEn is timestamp;
+        // Una fecha futura dejaría el mensaje fijo al final de la sala, y un
+        // vencimiento lejano lo salvaría del borrado a las 36 horas.
+        && marcaReciente(request.resource.data.creadoEn)
+        && request.resource.data.expiraEn is timestamp
+        && request.resource.data.expiraEn < request.time + duration.value(37, 'h');
 
       // Un mensaje no se edita: se borra. Así nadie reescribe lo que dijo.
       allow update: if false;
       allow delete: if esAdmin() || esMio(resource.data.autorUid);
-    }
-
-    // Conversaciones privadas entre dos miembros.
-    match /chats/{chatId} {
-      allow read, write: if autenticado() && request.auth.uid in request.resource.data.participantes;
-      allow read, delete: if autenticado() && request.auth.uid in resource.data.participantes;
-
-      match /mensajes/{id} {
-        allow read: if autenticado()
-          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantes;
-        allow create: if autenticado()
-          && request.resource.data.autorUid == request.auth.uid
-          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantes;
-        allow update: if false;
-        allow delete: if esAdmin() || esMio(resource.data.autorUid);
-      }
     }
 
     // Respaldo manual de las tasas del dólar, por si la fuente pública falla.

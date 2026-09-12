@@ -1,0 +1,14 @@
+{
+  "name": "mara-comercio-pruebas-reglas",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas de firestore.rules contra el emulador de Firestore. Viven aparte para que el proyecto principal no arrastre la CLI de Firebase, que pesa mucho y no hace falta para construir el sitio.",
+  "scripts": {
+    "probar": "cd .. && firebase --project demo-mara emulators:exec --only firestore \"node pruebas/reglas.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^15.30.0"
+  }
+}

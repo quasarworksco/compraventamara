@@ -1,0 +1,41 @@
+name: Probar las reglas de seguridad
+
+# Las reglas de Firestore son la única frontera real de la plataforma: la
+# interfaz se puede saltar desde la consola del navegador, ellas no. Por eso
+# se prueban contra el emulador de verdad cada vez que alguien las toca.
+on:
+  push:
+    paths:
+      - firestore.rules
+      - pruebas/**
+      - .github/workflows/reglas.yml
+  pull_request:
+    paths:
+      - firestore.rules
+      - pruebas/**
+  workflow_dispatch:
+
+jobs:
+  probar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # El emulador de Firestore corre sobre la máquina virtual de Java.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Instalar dependencias de las pruebas
+        working-directory: pruebas
+        run: npm install
+
+      - name: Probar las reglas
+        working-directory: pruebas
+        run: npm run probar
