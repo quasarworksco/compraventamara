@@ -7,7 +7,7 @@ import { CabeceraSeccion } from "@/components/cabecera-seccion";
 import { IconChat, IconChevronRight, IconClock } from "@/components/icons";
 import { Aviso, Boton } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
-import { HORAS_DE_VIDA, SALAS } from "@/lib/chat";
+import { HORAS_DE_VIDA, SALAS } from "@/lib/salas";
 
 export default function PaginaChat() {
   const { miembro, cargando } = useSesion();

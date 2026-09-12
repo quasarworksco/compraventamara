@@ -26,27 +26,11 @@ import {
 } from "firebase/firestore";
 
 import { db, firebaseListo } from "./firebase";
+import { MS_DE_VIDA } from "./salas";
 import type { Mensaje, Miembro, SalaId } from "./types";
-
-/** Lo que vive un mensaje antes de esfumarse. */
-export const HORAS_DE_VIDA = 36;
-const MS_DE_VIDA = HORAS_DE_VIDA * 60 * 60 * 1000;
 
 /** Cuántos mensajes se traen como máximo al abrir una sala. */
 const TOPE_MENSAJES = 200;
-
-export interface Sala {
-  id: SalaId;
-  nombre: string;
-  detalle: string;
-}
-
-export const SALAS: Sala[] = [
-  { id: "general", nombre: "General", detalle: "Lo que pasa hoy en el pueblo" },
-  { id: "mercado", nombre: "Compra y venta", detalle: "Busco, vendo, cambio" },
-  { id: "dolar", nombre: "Dólares", detalle: "Tasas y disponibilidad al momento" },
-  { id: "mototaxis", nombre: "Mototaxis", detalle: "Carreras y disponibilidad" },
-];
 
 /** Suscripción en vivo a los mensajes vigentes de una sala. */
 export function useMensajes(sala: SalaId): { mensajes: Mensaje[]; cargando: boolean } {
