@@ -17,8 +17,10 @@ concurrency:
 
 jobs:
   publicar:
-    # El propio commit de publicación no debe disparar otra publicación.
-    if: ${{ !contains(github.event.head_commit.message, '[sitio]') }}
+    # El commit que hace este mismo flujo no debe disparar otra publicación.
+    # Se mira quién firma, no el texto del mensaje: un mensaje puede mencionar
+    # la marca al explicarla y saltarse la publicación sin querer.
+    if: ${{ github.event.head_commit.author.name != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -32,13 +34,16 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      # La compilación va primero a propósito: es la que genera next-env.d.ts
+      # y los tipos de ruta (PageProps, LayoutProps) de los que depende tsc.
+      # Comprobar los tipos antes que ella falla siempre.
+      - name: Construir el sitio
+        run: npm run build
+
       - name: Revisar tipos y estilo
         run: |
           npx tsc --noEmit
           npx eslint src --max-warnings=0
-
-      - name: Construir el sitio
-        run: npm run build
 
       - name: Copiar el sitio a la raíz
         run: ./scripts/publicar-en-raiz.sh
