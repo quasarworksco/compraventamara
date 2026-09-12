@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { BarraSuperior } from "@/components/barra-superior";
+import { EditarPerfil } from "@/components/editar-perfil";
 import { IconAlert, IconLogout, IconPlus, IconTag, IconVerified } from "@/components/icons";
 import { TarjetaPublicacion } from "@/components/tarjeta-publicacion";
 import {
@@ -36,6 +37,7 @@ import { DIAS_VIGENCIA, type Publicacion } from "@/lib/types";
 export default function PaginaPerfil() {
   const { miembro, cargando, salir } = useSesion();
   const router = useRouter();
+  const [editando, setEditando] = useState(false);
 
   const { publicaciones, cargando: cargandoLista } = usePublicaciones({
     autorUid: miembro?.uid,
@@ -99,28 +101,35 @@ export default function PaginaPerfil() {
 
       <main className="flex flex-col gap-5 px-4 py-4">
         {/* Ficha del miembro */}
-        <section className="flex items-center gap-3.5 tarjeta p-4">
-          <Avatar
-            size={64}
-            url={miembro.fotoUrl}
-            nombre={iniciales(miembro.nombre, miembro.apellido)}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h1 className="clamp-1 text-lg font-bold text-fg">
-                {nombreCompleto(miembro.nombre, miembro.apellido)}
-              </h1>
-              {miembro.verificado ? <SelloVerificado size={17} /> : null}
+        {editando ? (
+          <EditarPerfil miembro={miembro} alTerminar={() => setEditando(false)} />
+        ) : (
+          <section className="flex items-center gap-3.5 tarjeta p-4">
+            <Avatar
+              size={64}
+              url={miembro.fotoUrl}
+              nombre={iniciales(miembro.nombre, miembro.apellido)}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <h1 className="clamp-1 text-lg font-bold text-fg">
+                  {nombreCompleto(miembro.nombre, miembro.apellido)}
+                </h1>
+                {miembro.verificado ? <SelloVerificado size={17} /> : null}
+              </div>
+              <p className="mt-0.5 text-sm tabular-nums text-fg-muted">
+                {formatearTelefono(miembro.telefono)}
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <Insignia tono="marca">{miembro.codigo}</Insignia>
+                {miembro.zona ? <Insignia>{miembro.zona}</Insignia> : null}
+              </div>
             </div>
-            <p className="mt-0.5 text-sm tabular-nums text-fg-muted">
-              {formatearTelefono(miembro.telefono)}
-            </p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              <Insignia tono="marca">{miembro.codigo}</Insignia>
-              {miembro.zona ? <Insignia>{miembro.zona}</Insignia> : null}
-            </div>
-          </div>
-        </section>
+            <Boton variante="secundario" onClick={() => setEditando(true)}>
+              Editar
+            </Boton>
+          </section>
+        )}
 
         {/* Avisos de vencimiento */}
         {porCaducar.length > 0 ? (

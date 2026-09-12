@@ -23,6 +23,7 @@ import {
 } from "react";
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
@@ -129,29 +130,40 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
       datos.clave,
     );
 
-    const codigo = await reservarCodigo();
-    const perfil: Miembro = {
-      uid: credencial.user.uid,
-      codigo,
-      nombre: datos.nombre.trim(),
-      apellido: datos.apellido.trim(),
-      telefono,
-      fotoUrl: datos.fotoUrl,
-      zona: datos.zona?.trim() || undefined,
-      verificado: false,
-      rol: "miembro",
-      creadoEn: Date.now(),
-    };
+    // Registrarse son dos pasos: la cuenta y el perfil. Si el segundo falla
+    // —sin conexión a mitad, por ejemplo— la cuenta quedaría creada y vacía, y
+    // esa persona no podría ni registrarse de nuevo (su número ya existiría)
+    // ni usar la plataforma. Se deshace la cuenta para que pueda reintentar.
+    try {
+      const codigo = await reservarCodigo();
+      const perfil: Miembro = {
+        uid: credencial.user.uid,
+        codigo,
+        nombre: datos.nombre.trim(),
+        apellido: datos.apellido.trim(),
+        telefono,
+        fotoUrl: datos.fotoUrl,
+        zona: datos.zona?.trim() || undefined,
+        verificado: false,
+        rol: "miembro",
+        creadoEn: Date.now(),
+      };
 
-    await setDoc(doc(db(), "miembros", credencial.user.uid), perfil);
+      await setDoc(doc(db(), "miembros", credencial.user.uid), perfil);
 
-    // El nombre y la foto también en Auth: así los paneles de Firebase son legibles.
-    await updateProfile(credencial.user, {
-      displayName: nombreCompleto(perfil.nombre, perfil.apellido),
-      photoURL: perfil.fotoUrl,
-    });
+      // El nombre y la foto también en Auth: así los paneles de Firebase son legibles.
+      await updateProfile(credencial.user, {
+        displayName: nombreCompleto(perfil.nombre, perfil.apellido),
+        photoURL: perfil.fotoUrl,
+      });
 
-    setMiembro(perfil);
+      setMiembro(perfil);
+    } catch (error) {
+      await deleteUser(credencial.user).catch(() => {
+        // Si ni siquiera se puede deshacer, se avisa igual del fallo original.
+      });
+      throw error;
+    }
   }, []);
 
   const entrar = useCallback(async (telefono: string, clave: string) => {

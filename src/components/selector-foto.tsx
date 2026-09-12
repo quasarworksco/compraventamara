@@ -66,13 +66,13 @@ export function SelectorFoto({
         ref={entrada}
         type="file"
         accept="image/*"
-        capture="user"
         className="sr-only"
         onChange={(e) => elegir(e.target.files?.[0])}
       />
 
       <p className="max-w-60 text-center text-xs text-fg-subtle">
-        Una foto tuya, clara y de frente. Es lo que verán los demás al cerrar un trato.
+        Una foto tuya, clara y de frente. Puedes tomarla ahora o elegirla de tu galería. Es
+        lo que verán los demás al cerrar un trato.
       </p>
     </div>
   );
