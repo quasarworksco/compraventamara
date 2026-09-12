@@ -20,8 +20,8 @@ import {
   IconTag,
   IconTicket,
   IconUser,
-  LogoMark,
 } from "@/components/icons";
+import { Logotipo } from "@/components/logotipo";
 import { SeguridadPueblo } from "@/components/seguridad-pueblo";
 import { TarjetaPublicacion } from "@/components/tarjeta-publicacion";
 import { TasasDelDia } from "@/components/tasas-del-dia";
@@ -85,16 +85,13 @@ export default function Portada() {
   return (
     <main className="flex flex-col gap-7 pb-6">
       {/* Cabecera del pueblo */}
-      <header className="cielo-mara relative overflow-hidden px-4 pb-14 pt-5 text-white">
+      <header className="cielo-mara relative overflow-hidden px-4 pb-7 pt-5 text-white">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <LogoMark size={38} className="text-brand-800" />
-            <div>
-              <p className="text-[17px] font-bold leading-tight">Mara Comercio</p>
-              <p className="text-xs text-brand-100">
-                {PUEBLO.municipio} · {PUEBLO.estado}
-              </p>
-            </div>
+          <div className="min-w-0">
+            <Logotipo blanco alto={30} />
+            <p className="mt-1 text-xs text-brand-100">
+              {PUEBLO.municipio} · {PUEBLO.estado}
+            </p>
           </div>
 
           {cargando ? (
@@ -151,9 +148,7 @@ export default function Portada() {
         </div>
       ) : null}
 
-      <div className="-mt-10">
-        <TasasDelDia />
-      </div>
+      <TasasDelDia />
 
       {/* Accesos a las secciones */}
       <section aria-labelledby="titulo-secciones" className="px-4">
@@ -213,7 +208,7 @@ export default function Portada() {
 
       <footer className="px-4 pt-2 text-center text-xs text-fg-subtle">
         <p>
-          Mara Comercio · {PUEBLO.nombre}, {PUEBLO.estado}
+          Compra Venta Mara · {PUEBLO.nombre}, {PUEBLO.estado}
         </p>
         <p className="mt-1">
           La página conecta a comprador y vendedor. No participa en el pago ni en la entrega.

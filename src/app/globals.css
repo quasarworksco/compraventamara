@@ -6,17 +6,17 @@
    --------------------------------------------------------------- */
 
 @theme {
-  /* Marca: el azul del municipio Mara sobre blanco y negro. */
-  --color-brand-50: #eef4fc;
-  --color-brand-100: #d6e6f8;
-  --color-brand-200: #adccf0;
-  --color-brand-300: #7aade4;
-  --color-brand-400: #4a8bd4;
-  --color-brand-500: #2a6cba;
-  --color-brand-600: #1b5599;
-  --color-brand-700: #144278;
-  --color-brand-800: #0f3159;
-  --color-brand-900: #0a2139;
+  /* Marca: el azul exacto del logotipo (#194a99), con su escala alrededor. */
+  --color-brand-50: #eef3fb;
+  --color-brand-100: #d5e3f6;
+  --color-brand-200: #abc6ed;
+  --color-brand-300: #79a4e0;
+  --color-brand-400: #4b81d1;
+  --color-brand-500: #2b62b8;
+  --color-brand-600: #194a99;
+  --color-brand-700: #143c80;
+  --color-brand-800: #102e63;
+  --color-brand-900: #0a1f42;
 
   /* Verde de la bandera: acento, nunca fondo de pantalla completa. */
   --color-verde-50: #eaf7ef;

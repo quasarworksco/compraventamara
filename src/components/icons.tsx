@@ -319,40 +319,6 @@ export function IconArrowDown(props: IconProps) {
 /* Marca                                                              */
 /* ----------------------------------------------------------------- */
 
-/**
- * Logotipo de Mara Comercio: dos flechas en intercambio (la compraventa)
- * dentro del sol de Maracaibo.
- */
-export function LogoMark({ size = 32, ...props }: IconProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      aria-hidden="true"
-      focusable="false"
-      {...props}
-    >
-      <rect width="32" height="32" rx="9" fill="currentColor" />
-      <path
-        d="M10.6 12.4h8.3M16.4 9l3.2 3.4-3.2 3.4"
-        stroke="var(--color-verde-300)"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M21.4 19.6h-8.3M15.6 23l-3.2-3.4 3.2-3.4"
-        stroke="#fff"
-        strokeWidth="2.1"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 /** Glifo oficial de WhatsApp: solo para los botones de contacto. */
 export function IconWhatsApp({ size = 24, ...props }: IconProps) {
   return (

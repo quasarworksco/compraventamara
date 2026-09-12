@@ -11,15 +11,14 @@ import { Esqueleto } from "./ui";
 export function TasasDelDia() {
   const { tasas, cargando } = useTasas();
 
-  // La fila del título monta sobre el azul de la cabecera, así que va en blanco.
   return (
     <section aria-labelledby="titulo-tasas" className="px-4">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 id="titulo-tasas" className="text-sm font-semibold text-white/85">
+        <h2 id="titulo-tasas" className="text-sm font-semibold text-fg-muted">
           El dólar hoy
         </h2>
         {tasas.actualizadoEn > 0 ? (
-          <p className="text-xs text-white/65">
+          <p className="text-xs text-fg-subtle">
             {tasas.origen === "manual" ? "Cargada a mano · " : ""}
             {hace(tasas.actualizadoEn)}
           </p>

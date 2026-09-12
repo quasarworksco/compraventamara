@@ -9,7 +9,7 @@
  */
 import { useState, type FormEvent } from "react";
 
-import { LogoMark } from "@/components/icons";
+import { Logotipo } from "@/components/logotipo";
 import { Aviso, Boton, Campo, CampoClave, Esqueleto } from "@/components/ui";
 import { mensajeError, useSesion } from "@/lib/auth";
 import {
@@ -71,11 +71,9 @@ export default function PaginaAdmin() {
 function Cabecera() {
   return (
     <div className="flex flex-col items-center gap-2 text-center">
-      <LogoMark size={44} className="text-brand-600" />
-      <div>
-        <h1 className="text-lg font-bold text-fg">Administración</h1>
-        <p className="text-sm text-fg-muted">Mara Comercio</p>
-      </div>
+      <Logotipo alto={34} className="dark:hidden" />
+      <Logotipo blanco alto={34} className="hidden dark:block" />
+      <h1 className="text-lg font-bold text-fg">Administración</h1>
     </div>
   );
 }
