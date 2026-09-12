@@ -91,7 +91,7 @@ function TarjetaRifa({ rifa }: { rifa: PublicacionRifa }) {
     rifa.totalNumeros > 0 ? Math.min(100, Math.round((vendidos / rifa.totalNumeros) * 100)) : 0;
 
   return (
-    <article className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+    <article className="tarjeta overflow-hidden">
       <div className="flex gap-3 p-3.5">
         <div className="size-20 shrink-0 overflow-hidden rounded-xl bg-surface-2">
           {portada ? (

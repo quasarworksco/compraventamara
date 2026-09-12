@@ -69,7 +69,7 @@ function TarjetaMototaxi({ moto }: { moto: PublicacionMototaxi }) {
   const persona = nombreCompleto(moto.autorNombre, moto.autorApellido);
 
   return (
-    <article className="rounded-card border border-line bg-surface p-3.5 shadow-card">
+    <article className="tarjeta p-3.5">
       <div className="flex items-start gap-3">
         <Avatar
           size={48}

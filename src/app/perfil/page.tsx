@@ -100,7 +100,7 @@ export default function PaginaPerfil() {
 
       <main className="flex flex-col gap-5 px-4 py-4">
         {/* Ficha del miembro */}
-        <section className="flex items-center gap-3.5 rounded-card border border-line bg-surface p-4 shadow-card">
+        <section className="flex items-center gap-3.5 tarjeta p-4">
           <Avatar
             size={64}
             url={miembro.fotoUrl}
@@ -178,7 +178,7 @@ export default function PaginaPerfil() {
 
         {!miembro.verificado ? (
           <Aviso>
-            Tu cuenta todavía no está verificada. La administración del grupo marca como
+            Tu cuenta todavía no está verificada. La administración marca como
             verificados a los miembros con buen historial de ventas.
           </Aviso>
         ) : null}

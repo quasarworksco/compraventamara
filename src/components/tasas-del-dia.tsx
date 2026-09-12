@@ -11,14 +11,15 @@ import { Esqueleto } from "./ui";
 export function TasasDelDia() {
   const { tasas, cargando } = useTasas();
 
+  // La fila del título monta sobre el azul de la cabecera, así que va en blanco.
   return (
     <section aria-labelledby="titulo-tasas" className="px-4">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h2 id="titulo-tasas" className="text-sm font-semibold text-fg-muted">
+        <h2 id="titulo-tasas" className="text-sm font-semibold text-white/85">
           El dólar hoy
         </h2>
         {tasas.actualizadoEn > 0 ? (
-          <p className="text-xs text-fg-subtle">
+          <p className="text-xs text-white/65">
             {tasas.origen === "manual" ? "Cargada a mano · " : ""}
             {hace(tasas.actualizadoEn)}
           </p>
@@ -43,7 +44,7 @@ export function TasasDelDia() {
 
       <Link
         href="/dolares"
-        className="mt-2.5 flex min-h-12 items-center justify-between rounded-card border border-line bg-surface px-4 text-sm font-medium text-fg shadow-card active:bg-surface-2"
+        className="mt-2.5 flex min-h-12 items-center justify-between tarjeta px-4 text-sm font-medium text-fg active:bg-surface-2"
       >
         Ver quién compra y vende efectivo
         <IconChevronRight size={18} className="text-fg-subtle" />
@@ -67,10 +68,8 @@ function TarjetaTasa({
 }) {
   return (
     <div
-      className={`rounded-card border p-3.5 shadow-card ${
-        acento
-          ? "border-verde-200 bg-verde-50 dark:border-verde-600/40 dark:bg-verde-600/12"
-          : "border-line bg-surface"
+      className={`cristal asoma rounded-card p-3.5 ${
+        acento ? "bg-linear-to-br from-verde-50/90 to-verde-100/70 dark:from-verde-600/20 dark:to-verde-600/10" : ""
       }`}
     >
       <p className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">{nombre}</p>

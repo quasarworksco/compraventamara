@@ -12,7 +12,8 @@ import { IconAlert, IconEye, IconEyeOff, IconSpinner, IconVerified } from "./ico
 type Variante = "primario" | "secundario" | "fantasma" | "whatsapp" | "peligro";
 
 const VARIANTES: Record<Variante, string> = {
-  primario: "bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800",
+  primario:
+    "bg-linear-to-b from-brand-500 to-brand-700 text-white shadow-sm shadow-brand-700/30 ring-1 ring-white/15 hover:from-brand-600 hover:to-brand-800",
   secundario: "bg-surface-2 text-fg border border-line hover:bg-line/60",
   fantasma: "text-fg-muted hover:bg-surface-2",
   whatsapp: "bg-wa-500 text-[#06302a] hover:bg-wa-400 active:bg-wa-600 active:text-white",
@@ -41,7 +42,7 @@ export function Boton({
     <button
       {...props}
       disabled={disabled || cargando}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${VARIANTES[variante]} ${ancho ? "w-full" : ""} ${className}`}
+      className={`pulsable inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold disabled:cursor-not-allowed disabled:opacity-55 ${VARIANTES[variante]} ${ancho ? "w-full" : ""} ${className}`}
     >
       {cargando ? <IconSpinner size={18} /> : icono}
       {children}

@@ -19,10 +19,28 @@ service cloud.firestore {
       return autenticado() && request.auth.uid == uid;
     }
 
-    function esAdmin() {
+    // Correo dueño de la plataforma. Cambiar aquí si pasa a otras manos, y
+    // mantenerlo igual que NEXT_PUBLIC_ADMIN_EMAIL en el entorno.
+    //
+    // Se exige el correo verificado a propósito: sin esa condición, quien
+    // registrase primero esa dirección en Firebase se quedaría con el mando.
+    function esDueno() {
       return autenticado()
-        && exists(/databases/$(database)/documents/miembros/$(request.auth.uid))
-        && get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.rol == 'admin';
+        && request.auth.token.email.lower() == 'kevinbermudez1412@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function esAdmin() {
+      return esDueno()
+        || (autenticado()
+            && exists(/databases/$(database)/documents/administradores/$(request.auth.uid)));
+    }
+
+    // Administradores. Solo el correo dueño reparte y retira permisos: ningún
+    // administrador puede nombrar a otro ni quitarse a sí mismo del medio.
+    match /administradores/{uid} {
+      allow read: if autenticado();
+      allow write: if esDueno();
     }
 
     // Perfiles. Son públicos a propósito: la foto, el nombre y el teléfono son

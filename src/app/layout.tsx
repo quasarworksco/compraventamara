@@ -9,11 +9,11 @@ const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "Mara Comercio — compra y venta del grupo",
+    default: "Mara Comercio — San Rafael del Moján",
     template: "%s · Mara Comercio",
   },
   description:
-    "La plataforma del grupo Mara Comercio: artículos, tiendas, mototaxis y compra y venta de dólares, con contacto directo por WhatsApp.",
+    "Comercio de San Rafael del Moján: artículos, negocios, mototaxis, rifas y compra y venta de dólares, con contacto directo por WhatsApp.",
   applicationName: "Mara Comercio",
   appleWebApp: { capable: true, title: "Mara Comercio", statusBarStyle: "default" },
   formatDetection: { telephone: false },

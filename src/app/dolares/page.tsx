@@ -149,7 +149,7 @@ function TarjetaDivisa({ oferta }: { oferta: PublicacionDolar }) {
   const verbo = oferta.operacion === "venta" ? "vendes" : "compras";
 
   return (
-    <article className="rounded-card border border-line bg-surface p-3.5 shadow-card">
+    <article className="tarjeta p-3.5">
       <div className="flex items-start gap-3">
         <Avatar
           size={52}

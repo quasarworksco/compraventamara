@@ -1,8 +1,8 @@
 # Mara Comercio
 
-La plataforma del grupo de compraventa de **San Rafael del Moján**, capital del
-municipio Mara (Zulia, Venezuela). Nace del grupo de WhatsApp y su meta es que
-en el pueblo no haya que preguntar dónde se consigue algo: si existe, está aquí.
+La plataforma de comercio de **San Rafael del Moján**, capital del municipio
+Mara (Zulia, Venezuela). Su meta es que en el pueblo no haya que preguntar
+dónde se consigue algo: si existe, está aquí.
 
 ## Qué hay dentro
 

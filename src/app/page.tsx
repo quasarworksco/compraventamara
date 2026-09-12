@@ -85,7 +85,7 @@ export default function Portada() {
   return (
     <main className="flex flex-col gap-7 pb-6">
       {/* Cabecera del pueblo */}
-      <header className="bg-brand-600 px-4 pb-6 pt-5 text-white">
+      <header className="cielo-mara relative overflow-hidden px-4 pb-14 pt-5 text-white">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <LogoMark size={38} className="text-brand-800" />
@@ -110,7 +110,7 @@ export default function Portada() {
           ) : (
             <Link
               href="/entrar"
-              className="flex min-h-10 items-center gap-1.5 rounded-pill bg-white/15 px-3.5 text-sm font-semibold"
+              className="cristal-sobre-azul pulsable flex min-h-10 items-center gap-1.5 rounded-pill px-3.5 text-sm font-semibold"
             >
               <IconUser size={17} />
               Entrar
@@ -118,19 +118,23 @@ export default function Portada() {
           )}
         </div>
 
-        <h1 className="mt-5 text-2xl font-bold leading-tight">{PUEBLO.nombre}</h1>
-        <p className="mt-1.5 text-sm leading-relaxed text-brand-100">{PUEBLO.bienvenida}</p>
+        <h1 className="asoma mt-6 text-[27px] font-bold leading-tight tracking-tight">
+          {PUEBLO.nombre}
+        </h1>
+        <p className="asoma retardo-1 mt-2 max-w-md text-sm leading-relaxed text-brand-100">
+          {PUEBLO.bienvenida}
+        </p>
 
-        <form onSubmit={buscar} role="search" className="mt-4">
-          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-1 dark:bg-surface">
-            <IconSearch size={19} className="shrink-0 text-fg-subtle" />
+        <form onSubmit={buscar} role="search" className="asoma retardo-2 mt-5">
+          <div className="cristal-sobre-azul flex items-center gap-2 rounded-2xl px-3.5 py-1">
+            <IconSearch size={19} className="shrink-0 text-white/70" />
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               type="search"
               placeholder="¿Qué estás buscando?"
               aria-label="Buscar en el marketplace"
-              className="min-h-11 w-full bg-transparent text-fg outline-none placeholder:text-fg-subtle"
+              className="min-h-12 w-full bg-transparent text-white outline-none placeholder:text-white/60"
             />
           </div>
         </form>
@@ -147,7 +151,9 @@ export default function Portada() {
         </div>
       ) : null}
 
-      <TasasDelDia />
+      <div className="-mt-10">
+        <TasasDelDia />
+      </div>
 
       {/* Accesos a las secciones */}
       <section aria-labelledby="titulo-secciones" className="px-4">
@@ -155,13 +161,13 @@ export default function Portada() {
           El comercio del pueblo
         </h2>
         <div className="grid grid-cols-2 gap-2.5">
-          {SECCIONES.map(({ href, titulo, detalle, Icono }) => (
+          {SECCIONES.map(({ href, titulo, detalle, Icono }, indice) => (
             <Link
               key={href}
               href={href}
-              className="flex flex-col gap-2 rounded-card border border-line bg-surface p-3.5 shadow-card active:bg-surface-2"
+              className={`tarjeta pulsable asoma retardo-${(indice % 4) + 1} flex flex-col gap-2.5 p-3.5`}
             >
-              <span className="flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-800 dark:text-brand-200">
+              <span className="flex size-11 items-center justify-center rounded-xl bg-linear-to-br from-brand-500 to-brand-700 text-white shadow-sm shadow-brand-700/25 ring-1 ring-white/15">
                 <Icono size={21} />
               </span>
               <span>

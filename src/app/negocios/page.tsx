@@ -114,7 +114,7 @@ function TarjetaNegocio({ negocio }: { negocio: PublicacionNegocio }) {
   const logo = negocio.imagenes[0];
 
   return (
-    <article className="rounded-card border border-line bg-surface p-3.5 shadow-card">
+    <article className="tarjeta p-3.5">
       <div className="flex gap-3">
         <div className="size-14 shrink-0 overflow-hidden rounded-xl bg-surface-2">
           {logo ? (
