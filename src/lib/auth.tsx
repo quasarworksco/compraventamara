@@ -71,6 +71,8 @@ interface Sesion {
   entrar: (telefono: string, clave: string) => Promise<void>;
   salir: () => Promise<void>;
   actualizarPerfil: (cambios: Partial<Miembro>) => Promise<void>;
+  /** Pide a la administración que verifique la cuenta. */
+  solicitarVerificacion: () => Promise<void>;
 }
 
 const ContextoSesion = createContext<Sesion | null>(null);
@@ -172,6 +174,18 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     [usuario],
   );
 
+  /**
+   * Solicitar la verificación es lo único que el miembro puede tocar de su
+   * estado de confianza: el sello lo pone un administrador, nunca él mismo.
+   */
+  const solicitarVerificacion = useCallback(async () => {
+    if (!usuario) throw new Error("No hay sesión abierta.");
+    await updateDoc(doc(db(), "miembros", usuario.uid), {
+      solicitaVerificacion: true,
+      solicitadoEn: Date.now(),
+    });
+  }, [usuario]);
+
   const valor = useMemo<Sesion>(
     () => ({
       usuario,
@@ -182,8 +196,18 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
       entrar,
       salir,
       actualizarPerfil,
+      solicitarVerificacion,
     }),
-    [usuario, miembro, cargando, registrar, entrar, salir, actualizarPerfil],
+    [
+      usuario,
+      miembro,
+      cargando,
+      registrar,
+      entrar,
+      salir,
+      actualizarPerfil,
+      solicitarVerificacion,
+    ],
   );
 
   return <ContextoSesion.Provider value={valor}>{children}</ContextoSesion.Provider>;

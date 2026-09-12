@@ -30,6 +30,19 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
+    /**
+     * Miembro verificado por la administración.
+     *
+     * Es la llave del tablón de divisas: publicar una oferta de dólares
+     * significa citar a un vecino para un intercambio de efectivo en mano,
+     * así que no basta con estar registrado.
+     */
+    function miembroVerificado() {
+      return autenticado()
+        && exists(/databases/$(database)/documents/miembros/$(request.auth.uid))
+        && get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.verificado == true;
+    }
+
     function esAdmin() {
       return esDueno()
         || (autenticado()
@@ -55,6 +68,8 @@ service cloud.firestore {
         && request.resource.data.fotoUrl.size() > 0;
 
       // Nadie se asciende a sí mismo ni se autoverifica: eso lo hace un admin.
+      // Cada quien edita su ficha, pero nadie se asciende, se autoverifica
+      // ni se cambia el código. Pedir la verificación sí es cosa suya.
       allow update: if esAdmin()
         || (esMio(uid)
             && request.resource.data.rol == resource.data.rol
@@ -82,12 +97,17 @@ service cloud.firestore {
         && request.resource.data.autorUid == request.auth.uid
         && request.resource.data.titulo is string
         && request.resource.data.titulo.size() > 0
-        && request.resource.data.tipo in ['producto', 'negocio', 'mototaxi', 'dolar', 'rifa'];
+        && request.resource.data.tipo in ['producto', 'negocio', 'mototaxi', 'dolar', 'rifa']
+        && (request.resource.data.tipo != 'dolar' || miembroVerificado());
 
-      // El autor puede editar y prorrogar la suya; el autor no cambia nunca.
+      // El autor puede editar y prorrogar la suya; el autor no cambia nunca,
+      // y el tipo tampoco, para que no se cuele una oferta de divisas
+      // convirtiendo en dólares un anuncio creado como otra cosa.
       allow update: if esAdmin()
         || (esMio(resource.data.autorUid)
-            && request.resource.data.autorUid == resource.data.autorUid);
+            && request.resource.data.autorUid == resource.data.autorUid
+            && request.resource.data.tipo == resource.data.tipo
+            && (resource.data.tipo != 'dolar' || miembroVerificado()));
 
       allow delete: if esAdmin() || esMio(resource.data.autorUid);
     }

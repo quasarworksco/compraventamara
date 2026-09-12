@@ -208,7 +208,9 @@ export default function PaginaDolares() {
             }
             accion={
               <Link href="/publicar?tipo=dolar">
-                <Boton icono={<IconPlus size={18} />}>Publicar mi oferta</Boton>
+                <Boton icono={<IconPlus size={18} />}>
+                  {miembro?.verificado ? "Publicar mi oferta" : "Quiero publicar aquí"}
+                </Boton>
               </Link>
             }
           />
@@ -225,9 +227,9 @@ export default function PaginaDolares() {
         )}
 
         <Aviso>
-          Mara Comercio solo publica las ofertas: no recibe, no entrega ni garantiza ningún
-          dinero. Reúnete en un sitio concurrido y de día, y cuenta el efectivo antes de
-          entregar.
+          Solo publican aquí los miembros verificados por la administración. Aun así, Mara
+          Comercio no recibe, no entrega ni garantiza ningún dinero: reúnete en un sitio
+          concurrido y de día, y cuenta el efectivo antes de entregar.
         </Aviso>
       </main>
     </>

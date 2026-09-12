@@ -11,7 +11,7 @@ dónde se consigue algo: si existe, está aquí.
 | **Portada** | La entrada al pueblo: bienvenida, tasas del dólar del día y los teléfonos de Polimara y atención al ciudadano. |
 | **Marketplace** | Vehículos, celulares, artículos y bienes. Los anuncios viven 30 días, avisan antes de vencer y se pueden prorrogar. |
 | **Negocios** | Directorio del pueblo por rubro: desde un odontólogo hasta una cauchera. Las fichas no vencen. |
-| **Dólares** | Tablón de compra y venta de efectivo con la foto, el nombre completo y el teléfono de quien publica. Cada oferta vive 6 horas y se renueva con un toque; una oferta viva por persona; junto a cada tasa se ve cuánto se aparta del BCV y de Binance. |
+| **Dólares** | Tablón de compra y venta de efectivo con la foto, el nombre completo y el teléfono de quien publica. Solo publican los miembros verificados por la administración. Cada oferta vive 6 horas y se renueva con un toque; una oferta viva por persona; junto a cada tasa se ve cuánto se aparta del BCV y de Binance. |
 | **Rifas** | Qué se rifa, precio del número, con qué lotería juega y el día del sorteo. |
 | **Mototaxis** | Quién está rodando, a qué tarifa y qué sectores cubre. |
 | **Chat en vivo** | Cuatro salas en tiempo real. Los mensajes se borran solos a las 36 horas. |
@@ -67,8 +67,9 @@ protege los datos son las reglas de Firestore, no el secreto de la clave.
 4. **Firestore → TTL** → crear una segunda política sobre `venceEn` en
    `publicaciones` si se quiere que el borrado a los 30 días lo haga Firestore.
    Mientras tanto, las publicaciones vencidas dejan de mostrarse igual.
-5. Para nombrar a un administrador, poner `rol: "admin"` a mano en su documento
-   de `miembros`. Los admins verifican miembros y cargan la tasa de respaldo.
+5. El panel de administración vive en `/admin` y se entra con correo y
+   contraseña. El correo de `NEXT_PUBLIC_ADMIN_EMAIL` es el dueño y el único
+   que nombra o retira administradores; debe estar verificado en Firebase.
 
 ### Sobre el inicio de sesión con teléfono
 

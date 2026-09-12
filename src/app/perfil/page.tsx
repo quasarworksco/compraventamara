@@ -12,11 +12,10 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { BarraSuperior } from "@/components/barra-superior";
-import { IconAlert, IconLogout, IconPlus, IconTag } from "@/components/icons";
+import { IconAlert, IconLogout, IconPlus, IconTag, IconVerified } from "@/components/icons";
 import { TarjetaPublicacion } from "@/components/tarjeta-publicacion";
 import {
   Avatar,
-  Aviso,
   Boton,
   Esqueleto,
   EstadoVacio,
@@ -176,18 +175,63 @@ export default function PaginaPerfil() {
           )}
         </section>
 
-        {!miembro.verificado ? (
-          <Aviso>
-            Tu cuenta todavía no está verificada. La administración marca como
-            verificados a los miembros con buen historial de ventas.
-          </Aviso>
-        ) : null}
+        {!miembro.verificado ? <BloqueVerificacion pedida={miembro.solicitaVerificacion === true} /> : null}
 
         <Boton variante="secundario" ancho icono={<IconLogout size={18} />} onClick={cerrarSesion}>
           Cerrar sesión
         </Boton>
       </main>
     </>
+  );
+}
+
+/**
+ * Estado de la verificación.
+ *
+ * Se explica para qué sirve, porque el sello no es decorativo: es la llave
+ * del tablón de divisas.
+ */
+function BloqueVerificacion({ pedida }: { pedida: boolean }) {
+  const { solicitarVerificacion } = useSesion();
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const yaPedida = pedida || enviado;
+
+  async function pedir() {
+    setEnviando(true);
+    try {
+      await solicitarVerificacion();
+      setEnviado(true);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <section className="tarjeta flex flex-col gap-3 p-3.5">
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 shrink-0 text-fg-subtle">
+          <IconVerified size={20} />
+        </span>
+        <div>
+          <p className="font-semibold text-fg">Tu cuenta no está verificada</p>
+          <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+            Puedes publicar artículos, tu negocio, rifas y mototaxis con normalidad. El sello
+            de verificado lo da la administración y es lo que abre el tablón de dólares.
+          </p>
+        </div>
+      </div>
+
+      {yaPedida ? (
+        <p className="rounded-xl bg-surface-2 p-3 text-sm text-fg-muted">
+          Tu solicitud está en la lista. Te avisamos en cuanto la revisen.
+        </p>
+      ) : (
+        <Boton ancho variante="secundario" cargando={enviando} onClick={pedir}>
+          Solicitar verificación
+        </Boton>
+      )}
+    </section>
   );
 }
 

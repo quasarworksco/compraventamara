@@ -17,6 +17,7 @@ import {
   IconStore,
   IconTag,
   IconTicket,
+  IconVerified,
 } from "@/components/icons";
 import { SelectorImagenes } from "@/components/selector-imagenes";
 import {
@@ -202,7 +203,16 @@ function Publicar() {
     }
   }
 
+  /**
+   * El tablón de divisas está reservado a los miembros verificados: publicar
+   * allí significa citar a un vecino para un intercambio de efectivo en mano.
+   */
+  const puedePublicarDivisas = miembro?.verificado === true;
+
   function validar(): string | null {
+    if (tipo === "dolar" && !puedePublicarDivisas) {
+      return "Para publicar en dólares tu cuenta debe estar verificada.";
+    }
     if (tipo === "producto") {
       if (titulo.trim().length < 3) return "Ponle un título al artículo.";
       if (!Number(precio)) return "Indica el precio.";
@@ -281,23 +291,28 @@ function Publicar() {
         <fieldset className="mb-5">
           <legend className="mb-2 text-sm font-medium text-fg-muted">¿Qué vas a publicar?</legend>
           <div className="grid grid-cols-3 gap-2">
-            {TIPOS.map(({ tipo: valor, titulo: nombre, detalle, Icono }) => (
-              <button
-                key={valor}
-                type="button"
-                onClick={() => setTipo(valor)}
-                aria-pressed={tipo === valor}
-                className={`flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center transition-colors ${
-                  tipo === valor
-                    ? "border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-800 dark:text-brand-100"
-                    : "border-line bg-surface text-fg-muted"
-                }`}
-              >
-                <Icono size={21} />
-                <span className="text-xs font-semibold">{nombre}</span>
-                <span className="text-[10px] leading-tight text-fg-subtle">{detalle}</span>
-              </button>
-            ))}
+            {TIPOS.map(({ tipo: valor, titulo: nombre, detalle, Icono }) => {
+              const bloqueado = valor === "dolar" && !puedePublicarDivisas;
+              return (
+                <button
+                  key={valor}
+                  type="button"
+                  onClick={() => setTipo(valor)}
+                  aria-pressed={tipo === valor}
+                  className={`pulsable relative flex flex-col items-center gap-1 rounded-xl border p-2.5 text-center ${
+                    tipo === valor
+                      ? "border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-800 dark:text-brand-100"
+                      : "border-line bg-surface text-fg-muted"
+                  } ${bloqueado ? "opacity-55" : ""}`}
+                >
+                  <Icono size={21} />
+                  <span className="text-xs font-semibold">{nombre}</span>
+                  <span className="text-[10px] leading-tight text-fg-subtle">
+                    {bloqueado ? "Requiere verificación" : detalle}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </fieldset>
 
@@ -398,6 +413,10 @@ function Publicar() {
                 ayuda="Instagram, catálogo o página."
               />
             </>
+          ) : null}
+
+          {tipo === "dolar" && !puedePublicarDivisas ? (
+            <SinVerificar />
           ) : null}
 
           {tipo === "dolar" ? (
@@ -604,11 +623,65 @@ function Publicar() {
             <Insignia tono="marca">Publicas como {miembro.codigo}</Insignia>
           </div>
 
-          <Boton type="submit" ancho cargando={enviando} disabled={!configurado}>
+          <Boton
+            type="submit"
+            ancho
+            cargando={enviando}
+            disabled={!configurado || (tipo === "dolar" && !puedePublicarDivisas)}
+          >
             Publicar
           </Boton>
         </form>
       </main>
     </>
+  );
+}
+
+/**
+ * Lo que ve quien intenta publicar en divisas sin estar verificado.
+ * Ofrece el camino en lugar de dejarlo en un muro.
+ */
+function SinVerificar() {
+  const { miembro, solicitarVerificacion } = useSesion();
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const yaPedida = enviado || miembro?.solicitaVerificacion === true;
+
+  async function pedir() {
+    setEnviando(true);
+    try {
+      await solicitarVerificacion();
+      setEnviado(true);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="tarjeta flex flex-col gap-3 p-3.5">
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 shrink-0 text-brand-600 dark:text-brand-300">
+          <IconVerified size={20} />
+        </span>
+        <div>
+          <p className="font-semibold text-fg">El tablón de divisas pide verificación</p>
+          <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+            Publicar dólares significa citar a un vecino para entregar efectivo en mano, así
+            que la administración revisa antes a quién deja publicar. Mientras tanto puedes
+            ver todas las ofertas y escribir por WhatsApp a quien quieras.
+          </p>
+        </div>
+      </div>
+
+      {yaPedida ? (
+        <p className="rounded-xl bg-surface-2 p-3 text-sm text-fg-muted">
+          Tu solicitud está en la lista. Te avisamos en cuanto la revisen.
+        </p>
+      ) : (
+        <Boton ancho variante="secundario" cargando={enviando} onClick={pedir}>
+          Solicitar verificación
+        </Boton>
+      )}
+    </div>
   );
 }

@@ -50,8 +50,15 @@ export interface Miembro {
   zona?: string;
   /** Foto de la persona, obligatoria: sirve para reconocerla al cerrar un trato. */
   fotoUrl: string;
-  /** Lo activa la administración para los vendedores de confianza. */
+  /**
+   * Lo activa la administración. Además de dar el sello de confianza, es la
+   * llave del tablón de divisas: sin verificar no se puede publicar allí.
+   */
   verificado: boolean;
+  /** El miembro pidió que lo verifiquen y espera respuesta. */
+  solicitaVerificacion?: boolean;
+  /** Cuándo lo pidió, para que la administración atienda por orden. */
+  solicitadoEn?: number;
   rol: Rol;
   creadoEn: number;
   /** Marca de tiempo de la última vez que estuvo en línea. */

@@ -132,16 +132,38 @@ function SeccionMiembros() {
   const { miembros, cargando } = useMiembros(true);
   const [busqueda, setBusqueda] = useState("");
 
-  const visibles = miembros.filter((m) =>
+  const filtrados = miembros.filter((m) =>
     `${m.nombre} ${m.apellido} ${m.codigo} ${m.telefono}`
       .toLowerCase()
       .includes(busqueda.toLowerCase().trim()),
   );
 
+  // Quien pidió la verificación va arriba: es la cola que hay que atender.
+  const visibles = [...filtrados].sort((a, b) => {
+    const esperaA = !a.verificado && a.solicitaVerificacion === true;
+    const esperaB = !b.verificado && b.solicitaVerificacion === true;
+    if (esperaA !== esperaB) return esperaA ? -1 : 1;
+    if (esperaA && esperaB) return (a.solicitadoEn ?? 0) - (b.solicitadoEn ?? 0);
+    return b.creadoEn - a.creadoEn;
+  });
+
+  const pendientes = miembros.filter(
+    (m) => !m.verificado && m.solicitaVerificacion === true,
+  ).length;
+
   if (cargando) return <Esqueleto className="h-40" />;
 
   return (
     <section className="flex flex-col gap-3">
+      {pendientes > 0 ? (
+        <Aviso>
+          {pendientes === 1
+            ? "Hay 1 persona esperando verificación."
+            : `Hay ${pendientes} personas esperando verificación.`}{" "}
+          Sin el sello no pueden publicar en el tablón de dólares.
+        </Aviso>
+      ) : null}
+
       <Campo
         etiqueta="Buscar miembro"
         placeholder="Nombre, código o teléfono"
@@ -174,10 +196,19 @@ function SeccionMiembros() {
               {miembro.codigo} · {formatearTelefono(miembro.telefono)}
             </p>
             <p className="text-xs text-fg-subtle">Se registró {hace(miembro.creadoEn)}</p>
+            {!miembro.verificado && miembro.solicitaVerificacion ? (
+              <span className="mt-1 inline-block">
+                <Insignia tono="verde">
+                  Pidió verificación {hace(miembro.solicitadoEn ?? miembro.creadoEn)}
+                </Insignia>
+              </span>
+            ) : null}
           </div>
           <Boton
             variante={miembro.verificado ? "secundario" : "primario"}
-            onClick={() => cambiarVerificacion(miembro.uid, !miembro.verificado)}
+            onClick={() =>
+              cambiarVerificacion(miembro.uid, !miembro.verificado)
+            }
             icono={miembro.verificado ? undefined : <IconCheck size={16} />}
           >
             {miembro.verificado ? "Quitar" : "Verificar"}

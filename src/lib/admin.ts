@@ -174,9 +174,17 @@ export function useMiembros(activo: boolean): { miembros: Miembro[]; cargando: b
   return { miembros: estado.miembros, cargando: activo && !estado.listo };
 }
 
-/** Marca o desmarca a un miembro como verificado por la administración. */
+/**
+ * Marca o desmarca a un miembro como verificado.
+ *
+ * Al resolverla, la solicitud sale de la cola: si se verifica, ya no hace
+ * falta; si se le quita el sello, tendrá que volver a pedirlo.
+ */
 export async function cambiarVerificacion(uid: string, verificado: boolean): Promise<void> {
-  await updateDoc(doc(db(), "miembros", uid), { verificado });
+  await updateDoc(doc(db(), "miembros", uid), {
+    verificado,
+    solicitaVerificacion: false,
+  });
 }
 
 /** Busca el uid de un miembro por su correo de administrador, si lo tuviera. */
