@@ -12,6 +12,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   limit as limitar,
   onSnapshot,
   orderBy,
@@ -26,9 +27,12 @@ import { normalizarBusqueda } from "./formato";
 import {
   DIAS_AVISO_VENCIMIENTO,
   DIAS_VIGENCIA,
+  HORAS_VIGENCIA_DOLAR,
   MS_POR_DIA,
+  MS_POR_HORA,
   type Miembro,
   type Publicacion,
+  type PublicacionDolar,
   type TipoPublicacion,
 } from "./types";
 
@@ -157,9 +161,10 @@ export type BorradorPublicacion = OmitirEnCadaTipo<
 /**
  * Cuánto vive cada tipo de publicación.
  *
- * Un anuncio de venta aguanta un mes; una tasa de dólar envejece en horas, así
- * que dura tres días; una rifa muere con su sorteo; y la ficha de un negocio
- * del directorio no vence mientras su dueño la mantenga.
+ * Un anuncio de venta aguanta un mes; una oferta de divisas, seis horas,
+ * porque la tasa se mueve varias veces al día; una rifa muere con su sorteo;
+ * y la ficha de un negocio del directorio no vence mientras su dueño la
+ * mantenga.
  */
 export function calcularVencimiento(
   tipo: TipoPublicacion,
@@ -168,7 +173,7 @@ export function calcularVencimiento(
   const ahora = Date.now();
   switch (tipo) {
     case "dolar":
-      return ahora + 3 * MS_POR_DIA;
+      return ahora + HORAS_VIGENCIA_DOLAR * MS_POR_HORA;
     case "rifa": {
       if (!datos.fechaSorteo) return ahora + DIAS_VIGENCIA * MS_POR_DIA;
       // Un día de gracia tras el sorteo para que se anuncie al ganador.
@@ -237,6 +242,74 @@ export async function crearPublicacion(
     autorVerificado: autor.verificado,
   });
   return referencia.id;
+}
+
+/**
+ * "Sigo disponible": el cambista confirma su oferta de un toque.
+ *
+ * Reinicia las seis horas de vigencia y actualiza la marca de confirmación,
+ * que es por la que se ordena el tablón. Quien confirma sube al tope; quien
+ * no, va bajando hasta desaparecer.
+ */
+export async function confirmarDisponibilidad(id: string): Promise<void> {
+  const ahora = Date.now();
+  await updateDoc(doc(db(), COLECCION, id), {
+    actualizadaEn: ahora,
+    venceEn: ahora + HORAS_VIGENCIA_DOLAR * MS_POR_HORA,
+    estado: "activa",
+  });
+}
+
+/** La oferta de divisas vigente de un miembro, si tiene alguna. */
+export async function ofertaDolarActiva(uid: string): Promise<PublicacionDolar | null> {
+  const resultado = await getDocs(
+    query(
+      collection(db(), COLECCION),
+      where("tipo", "==", "dolar"),
+      where("autorUid", "==", uid),
+      orderBy("creadaEn", "desc"),
+      limitar(5),
+    ),
+  );
+
+  const vigente = resultado.docs
+    .map((d) => ({ ...(d.data() as PublicacionDolar), id: d.id }))
+    .find((o) => o.estado === "activa" && o.venceEn > Date.now());
+
+  return vigente ?? null;
+}
+
+/**
+ * Publica o actualiza la oferta de divisas de un miembro.
+ *
+ * Cada persona tiene una sola oferta viva: si ya tenía una, se reescribe en
+ * lugar de crear otra. Sin esta regla, un solo cambista podría tapar el
+ * tablón con diez tasas distintas y dejar fuera al resto del pueblo.
+ */
+export async function publicarOfertaDolar(
+  borrador: BorradorPublicacion & { tipo: "dolar" },
+  autor: Miembro,
+): Promise<{ id: string; reemplazada: boolean }> {
+  const previa = await ofertaDolarActiva(autor.uid);
+  if (!previa) {
+    return { id: await crearPublicacion(borrador, autor), reemplazada: false };
+  }
+
+  const ahora = Date.now();
+  await updateDoc(doc(db(), COLECCION, previa.id), {
+    ...borrador,
+    estado: "activa",
+    actualizadaEn: ahora,
+    venceEn: ahora + HORAS_VIGENCIA_DOLAR * MS_POR_HORA,
+    // Los datos del autor se refrescan por si cambió su foto o su teléfono.
+    autorNombre: autor.nombre,
+    autorApellido: autor.apellido,
+    autorTelefono: autor.telefono,
+    autorFoto: autor.fotoUrl,
+    autorVerificado: autor.verificado,
+  });
+
+  return { id: previa.id, reemplazada: true };
 }
 
 export async function cambiarEstadoPublicacion(

@@ -21,6 +21,17 @@ export const DIAS_AVISO_VENCIMIENTO = 5;
 
 export const MS_POR_DIA = 86_400_000;
 
+export const MS_POR_HORA = 3_600_000;
+
+/**
+ * Una oferta de divisas vive seis horas.
+ *
+ * La tasa se mueve varias veces al día: un tablón con ofertas de ayer no es
+ * información, es ruido. Quien sigue disponible lo confirma con un toque y su
+ * oferta vuelve a contar seis horas desde cero; quien no, desaparece solo.
+ */
+export const HORAS_VIGENCIA_DOLAR = 6;
+
 export type Moneda = "USD" | "VES";
 
 export type EstadoPublicacion = "activa" | "pausada" | "cerrada";

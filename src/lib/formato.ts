@@ -96,6 +96,25 @@ export const ETIQUETA_TIPO: Record<TipoPublicacion, string> = {
   rifa: "Rifa",
 };
 
+/**
+ * Cuánto se aparta una tasa de su referencia, en porcentaje.
+ * Positivo significa por encima de la referencia; negativo, por debajo.
+ */
+export function diferenciaPorcentual(tasa: number, referencia: number): number | null {
+  if (!referencia || !Number.isFinite(referencia) || !Number.isFinite(tasa)) return null;
+  return ((tasa - referencia) / referencia) * 100;
+}
+
+/** "+3,2%" o "−1,5%", con el signo menos tipográfico. */
+export function formatearDiferencia(porcentaje: number): string {
+  const valor = new Intl.NumberFormat("es-VE", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(Math.abs(porcentaje));
+  if (Math.abs(porcentaje) < 0.05) return "igual";
+  return `${porcentaje > 0 ? "+" : "−"}${valor}%`;
+}
+
 /** Fecha de sorteo legible: "sábado 4 de octubre". */
 export function formatearFecha(iso: string): string {
   // Se fija el mediodía UTC para que el día no se corra por la zona horaria.

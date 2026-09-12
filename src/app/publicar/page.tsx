@@ -37,8 +37,12 @@ import {
   RUBROS_NEGOCIO,
   ZONAS,
 } from "@/lib/pueblo";
-import { crearPublicacion, type BorradorPublicacion } from "@/lib/publicaciones";
-import type { MetodoPago, Moneda, TipoPublicacion } from "@/lib/types";
+import {
+  crearPublicacion,
+  publicarOfertaDolar,
+  type BorradorPublicacion,
+} from "@/lib/publicaciones";
+import { HORAS_VIGENCIA_DOLAR, type MetodoPago, type Moneda, type TipoPublicacion } from "@/lib/types";
 
 const TIPOS = [
   { tipo: "producto", titulo: "Artículo", detalle: "Vehículo, celular, bien", Icono: IconTag },
@@ -234,7 +238,17 @@ function Publicar() {
 
     setEnviando(true);
     try {
-      const id = await crearPublicacion(construirBorrador(), miembro!);
+      const borrador = construirBorrador();
+
+      // Las divisas van por su propia vía: cada quien tiene una sola oferta
+      // viva, así que si ya tenía una se reescribe en lugar de duplicarse.
+      if (borrador.tipo === "dolar") {
+        await publicarOfertaDolar(borrador, miembro!);
+        router.replace("/dolares");
+        return;
+      }
+
+      const id = await crearPublicacion(borrador, miembro!);
       router.replace(`/publicacion/${id}`);
     } catch (error) {
       setFallo(error instanceof Error ? error.message : "No se pudo publicar.");
@@ -447,7 +461,10 @@ function Publicar() {
               </fieldset>
               <Aviso>
                 Tu nombre, tu foto y tu teléfono se mostrarán junto a la oferta, para que quien
-                te busque sepa a quién va a ver. La oferta se retira sola a los tres días.
+                te busque sepa a quién va a ver. La oferta se retira sola a las{" "}
+                {HORAS_VIGENCIA_DOLAR} horas; para seguir en el tablón basta con tocar
+                &ldquo;sigo disponible&rdquo;. Cada persona tiene una sola oferta viva: si ya
+                tenías una, esta la sustituye.
               </Aviso>
             </>
           ) : null}

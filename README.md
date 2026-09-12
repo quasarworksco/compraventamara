@@ -11,7 +11,7 @@ dónde se consigue algo: si existe, está aquí.
 | **Portada** | La entrada al pueblo: bienvenida, tasas del dólar del día y los teléfonos de Polimara y atención al ciudadano. |
 | **Marketplace** | Vehículos, celulares, artículos y bienes. Los anuncios viven 30 días, avisan antes de vencer y se pueden prorrogar. |
 | **Negocios** | Directorio del pueblo por rubro: desde un odontólogo hasta una cauchera. Las fichas no vencen. |
-| **Dólares** | Tablón de compra y venta de efectivo, con la foto, el nombre completo y el teléfono de quien publica. |
+| **Dólares** | Tablón de compra y venta de efectivo con la foto, el nombre completo y el teléfono de quien publica. Cada oferta vive 6 horas y se renueva con un toque; una oferta viva por persona; junto a cada tasa se ve cuánto se aparta del BCV y de Binance. |
 | **Rifas** | Qué se rifa, precio del número, con qué lotería juega y el día del sorteo. |
 | **Mototaxis** | Quién está rodando, a qué tarifa y qué sectores cubre. |
 | **Chat en vivo** | Cuatro salas en tiempo real. Los mensajes se borran solos a las 36 horas. |
