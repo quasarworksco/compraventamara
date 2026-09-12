@@ -53,6 +53,12 @@ Cada publicación anota en `.sitio-generado` qué entradas de primer nivel creó
 para que la siguiente borre exactamente esas. Los archivos del proyecto están
 en una lista protegida que el script nunca toca.
 
+> **Al trabajar en el proyecto, no confirmes los archivos del sitio.** Están
+> versionados porque Pages los sirve desde la raíz, pero quien los reconstruye
+> y confirma es el flujo de CI. Traerlos también en un commit de código provoca
+> conflictos en cada vuelta. Basta con tocar `src/` y empujar: el sitio se
+> republica solo. Las entradas generadas son las que lista `.sitio-generado`.
+
 Que no haya servidor tiene tres consecuencias, todas resueltas:
 
 - **No hay rutas de API.** Las tasas del dólar se leen desde el navegador,
