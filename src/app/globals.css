@@ -57,6 +57,17 @@
   --fg-subtle: #8592a8;
   --overlay: rgb(10 33 57 / 0.45);
   --shadow-card: 0 1px 2px rgb(10 33 57 / 0.06), 0 4px 12px rgb(10 33 57 / 0.05);
+  --shadow-alto: 0 2px 4px rgb(10 33 57 / 0.05), 0 12px 32px -8px rgb(10 33 57 / 0.16);
+
+  /* Cristal: translúcido, con un borde claro arriba que simula el canto. */
+  --cristal-fondo: rgb(255 255 255 / 0.72);
+  --cristal-borde: rgb(255 255 255 / 0.65);
+  --cristal-brillo: rgb(255 255 255 / 0.9);
+  --cristal-sombra: 0 1px 2px rgb(10 33 57 / 0.05), 0 8px 24px -6px rgb(10 33 57 / 0.14);
+
+  /* Cristal sobre el azul de la cabecera. */
+  --cristal-oscuro-fondo: rgb(255 255 255 / 0.14);
+  --cristal-oscuro-borde: rgb(255 255 255 / 0.26);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -70,6 +81,15 @@
     --fg-subtle: #6c7a90;
     --overlay: rgb(0 0 0 / 0.6);
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
+    --shadow-alto: 0 2px 4px rgb(0 0 0 / 0.5), 0 14px 34px -8px rgb(0 0 0 / 0.55);
+
+    --cristal-fondo: rgb(22 32 45 / 0.66);
+    --cristal-borde: rgb(255 255 255 / 0.1);
+    --cristal-brillo: rgb(255 255 255 / 0.14);
+    --cristal-sombra: 0 1px 2px rgb(0 0 0 / 0.45), 0 10px 28px -8px rgb(0 0 0 / 0.6);
+
+    --cristal-oscuro-fondo: rgb(255 255 255 / 0.09);
+    --cristal-oscuro-borde: rgb(255 255 255 / 0.16);
   }
 }
 
@@ -82,6 +102,7 @@
   --color-fg-muted: var(--fg-muted);
   --color-fg-subtle: var(--fg-subtle);
   --shadow-card: var(--shadow-card);
+  --shadow-alto: var(--shadow-alto);
 }
 
 @layer base {
@@ -152,5 +173,105 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Cristal
+   ---------------------------------------------------------------
+   El desenfoque de fondo es caro en teléfonos de gama baja, así que se
+   reserva para las capas que de verdad tienen algo detrás: la navegación
+   fija, las cabeceras pegajosas y las tarjetas que montan sobre la
+   cabecera azul. El resto de las tarjetas usan el mismo lenguaje visual
+   —translucidez, canto claro, sombra difusa— sin pagar el desenfoque.
+   --------------------------------------------------------------- */
+
+@layer components {
+  .cristal {
+    background-color: var(--cristal-fondo);
+    border: 1px solid var(--cristal-borde);
+    box-shadow: var(--cristal-sombra), inset 0 1px 0 0 var(--cristal-brillo);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  /* Para barras fijas: más opaco, porque debajo pasa el contenido. */
+  .cristal-barra {
+    background-color: color-mix(in srgb, var(--surface) 82%, transparent);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* Sobre fondo azul oscuro: el buscador y las píldoras de la cabecera. */
+  .cristal-sobre-azul {
+    background-color: var(--cristal-oscuro-fondo);
+    border: 1px solid var(--cristal-oscuro-borde);
+    box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.18);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+  }
+
+  /* Tarjeta de contenido: el lenguaje del cristal sin el coste del blur. */
+  .tarjeta {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card), inset 0 1px 0 0 var(--cristal-brillo);
+  }
+
+  /* Cabecera del pueblo: azul profundo con dos halos de luz. */
+  .cielo-mara {
+    background-color: var(--color-brand-700);
+    background-image:
+      radial-gradient(120% 90% at 8% 0%, var(--color-brand-500) 0%, transparent 55%),
+      radial-gradient(90% 70% at 100% 8%, color-mix(in srgb, var(--color-verde-500) 55%, transparent) 0%, transparent 60%),
+      linear-gradient(180deg, var(--color-brand-700) 0%, var(--color-brand-800) 100%);
+  }
+}
+
+@layer utilities {
+  /* Entrada escalonada de las secciones. */
+  @keyframes asoma {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .asoma {
+    animation: asoma 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .retardo-1 { animation-delay: 60ms; }
+  .retardo-2 { animation-delay: 120ms; }
+  .retardo-3 { animation-delay: 180ms; }
+  .retardo-4 { animation-delay: 240ms; }
+
+  /* Realce al pulsar: en móvil sustituye al hover, que no existe. */
+  .pulsable {
+    transition:
+      transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.2s ease,
+      background-color 0.2s ease;
+  }
+
+  .pulsable:active {
+    transform: scale(0.975);
+  }
+}
+
+/* Quien pidió menos movimiento no ve ninguno. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

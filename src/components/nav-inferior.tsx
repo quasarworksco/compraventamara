@@ -24,13 +24,16 @@ function estaActivo(ruta: string, href: string): boolean {
 export function NavInferior() {
   const ruta = usePathname();
 
-  // El chat a pantalla completa y el formulario de publicar se quedan la pantalla entera.
-  if (ruta.startsWith("/chat/") || ruta === "/publicar") return null;
+  // El chat a pantalla completa, el formulario de publicar y el panel de
+  // administración se quedan la pantalla entera.
+  if (ruta.startsWith("/chat/") || ruta.startsWith("/admin") || ruta === "/publicar") {
+    return null;
+  }
 
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur-md"
+      className="cristal-barra fixed inset-x-0 bottom-0 z-40 border-t border-line"
     >
       <ul className="mx-auto flex max-w-lg items-stretch justify-between px-2 pb-safe pt-1">
         {DESTINOS.slice(0, 2).map((destino) => (
@@ -41,7 +44,7 @@ export function NavInferior() {
           <Link
             href="/publicar"
             aria-label="Publicar"
-            className="-mt-5 flex size-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/30 transition-transform active:scale-95"
+            className="pulsable -mt-5 flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-700/35 ring-1 ring-white/20"
           >
             <IconPlus size={26} strokeWidth={2.2} />
           </Link>

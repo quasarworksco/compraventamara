@@ -15,8 +15,8 @@ export function SeguridadPueblo() {
         Seguridad y atención al ciudadano
       </h2>
 
-      <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
-        <div className="flex items-start gap-3 border-b border-line bg-brand-600 p-4 text-white">
+      <div className="tarjeta overflow-hidden">
+        <div className="cielo-mara flex items-start gap-3 border-b border-line p-4 text-white">
           <span className="mt-0.5 shrink-0 text-verde-300">
             <IconVerified size={22} />
           </span>
@@ -34,7 +34,7 @@ export function SeguridadPueblo() {
             <li key={contacto.id} className="border-b border-line last:border-0">
               <a
                 href={`tel:${contacto.telefono.replace(/\D/g, "")}`}
-                className="flex min-h-16 items-center gap-3 px-4 py-3 active:bg-surface-2"
+                className="pulsable flex min-h-16 items-center gap-3 px-4 py-3 active:bg-surface-2"
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-800 dark:text-brand-200">
                   <IconPhone size={19} />

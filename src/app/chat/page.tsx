@@ -7,7 +7,7 @@ import { CabeceraSeccion } from "@/components/cabecera-seccion";
 import { IconChat, IconChevronRight, IconClock } from "@/components/icons";
 import { Aviso, Boton } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
-import { HORAS_DE_VIDA, SALAS } from "@/lib/chat";
+import { HORAS_DE_VIDA, SALAS } from "@/lib/salas";
 
 export default function PaginaChat() {
   const { miembro, cargando } = useSesion();
@@ -17,7 +17,7 @@ export default function PaginaChat() {
       <CabeceraSeccion titulo="Chat en vivo" detalle="Conversa con el pueblo ahora mismo" />
 
       <main className="flex flex-col gap-3 px-4 py-4">
-        <div className="flex items-start gap-2.5 rounded-card border border-line bg-surface-2 p-3.5 text-sm text-fg-muted">
+        <div className="flex items-start gap-2.5 tarjeta bg-surface-2 p-3.5 text-sm text-fg-muted">
           <IconClock size={17} className="mt-0.5 shrink-0" />
           <p>
             Los mensajes duran {HORAS_DE_VIDA} horas y se borran solos. El chat es para lo de
@@ -30,7 +30,7 @@ export default function PaginaChat() {
             <li key={sala.id}>
               <Link
                 href={`/chat/${sala.id}`}
-                className="flex min-h-16 items-center gap-3 rounded-card border border-line bg-surface px-4 shadow-card active:bg-surface-2"
+                className="flex min-h-16 items-center gap-3 tarjeta px-4 active:bg-surface-2"
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-800 dark:text-brand-200">
                   <IconChat size={20} />

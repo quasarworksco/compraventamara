@@ -30,7 +30,7 @@ export function BotonWhatsApp({
         target="_blank"
         rel="noopener noreferrer"
         aria-label={etiqueta}
-        className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-wa-500 text-[#06302a] transition-transform active:scale-95"
+        className="pulsable flex size-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-b from-wa-400 to-wa-500 text-[#06302a] shadow-sm shadow-wa-600/25 ring-1 ring-white/25"
       >
         <IconWhatsApp size={21} />
       </a>
@@ -42,7 +42,7 @@ export function BotonWhatsApp({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-wa-500 px-4 text-[15px] font-semibold text-[#06302a] transition-transform active:scale-[0.98]"
+      className="pulsable flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-b from-wa-400 to-wa-500 px-4 text-[15px] font-semibold text-[#06302a] shadow-sm shadow-wa-600/25 ring-1 ring-white/25"
     >
       <IconWhatsApp size={20} />
       {etiqueta}

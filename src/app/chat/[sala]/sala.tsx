@@ -13,7 +13,8 @@ import { BarraSuperior } from "@/components/barra-superior";
 import { IconSend, IconSpinner } from "@/components/icons";
 import { Avatar, Aviso, Boton } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
-import { HORAS_DE_VIDA, SALAS, enviarMensaje, useMensajes } from "@/lib/chat";
+import { enviarMensaje, useMensajes } from "@/lib/chat";
+import { HORAS_DE_VIDA, SALAS } from "@/lib/salas";
 import { hora, iniciales } from "@/lib/formato";
 import type { Mensaje, SalaId } from "@/lib/types";
 

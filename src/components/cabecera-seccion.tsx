@@ -22,7 +22,7 @@ export function CabeceraSeccion({
   extra?: ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur-md">
+    <header className="cristal-barra sticky top-0 z-30 border-b border-line">
       <div className="flex items-center gap-1 px-2 pt-2">
         <Link
           href="/"
@@ -97,9 +97,9 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={activo}
-      className={`min-h-9 shrink-0 rounded-pill border px-3.5 text-sm font-medium transition-colors ${
+      className={`pulsable min-h-9 shrink-0 rounded-pill border px-3.5 text-sm font-medium ${
         activo
-          ? "border-brand-600 bg-brand-600 text-white"
+          ? "border-brand-600 bg-linear-to-b from-brand-500 to-brand-700 text-white shadow-sm shadow-brand-700/25"
           : "border-line bg-surface text-fg-muted"
       }`}
     >

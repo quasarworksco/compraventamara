@@ -155,7 +155,7 @@ export function DetallePublicacion({ id }: { id: string }) {
           </div>
 
           {/* Vendedor */}
-          <section className="rounded-card border border-line bg-surface p-3.5 shadow-card">
+          <section className="tarjeta p-3.5">
             <h2 className="mb-2.5 text-sm font-semibold text-fg-muted">Publicado por</h2>
             <div className="flex items-center gap-3">
               <Avatar
@@ -345,7 +345,7 @@ function Herramientas({ publicacion, dias }: { publicacion: Publicacion; dias: n
   }
 
   return (
-    <section className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-3.5 shadow-card">
+    <section className="flex flex-col gap-2.5 tarjeta p-3.5">
       <h2 className="text-sm font-semibold text-fg-muted">Esta publicación es tuya</h2>
 
       {publicacion.tipo !== "negocio" ? (

@@ -21,7 +21,7 @@ export function BarraSuperior({
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur-md">
+    <header className="cristal-barra sticky top-0 z-30 border-b border-line">
       <div className="mx-auto flex max-w-lg items-center gap-2 px-2 py-2">
         <button
           type="button"
