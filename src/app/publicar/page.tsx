@@ -259,7 +259,7 @@ function Publicar() {
       }
 
       const id = await crearPublicacion(borrador, miembro!);
-      router.replace(`/publicacion/${id}`);
+      router.replace(`/publicacion/?id=${id}`);
     } catch (error) {
       setFallo(error instanceof Error ? error.message : "No se pudo publicar.");
       setEnviando(false);

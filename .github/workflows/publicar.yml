@@ -1,0 +1,56 @@
+name: Publicar el sitio
+
+# Cada cambio en main reconstruye el sitio y lo deja en la raíz, que es de
+# donde GitHub Pages sirve este proyecto. No hace falta tocar ningún ajuste.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Dos publicaciones a la vez se pisarían al empujar a main.
+concurrency:
+  group: publicar-sitio
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    # El propio commit de publicación no debe disparar otra publicación.
+    if: ${{ !contains(github.event.head_commit.message, '[sitio]') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Revisar tipos y estilo
+        run: |
+          npx tsc --noEmit
+          npx eslint src --max-warnings=0
+
+      - name: Construir el sitio
+        run: npm run build
+
+      - name: Copiar el sitio a la raíz
+        run: ./scripts/publicar-en-raiz.sh
+
+      - name: Publicar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "El sitio no cambió."
+            exit 0
+          fi
+          git commit -m "Publicar el sitio [sitio]"
+          git push

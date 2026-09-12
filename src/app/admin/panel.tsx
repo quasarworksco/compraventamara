@@ -237,7 +237,7 @@ function SeccionPublicaciones() {
         >
           <div className="min-w-0 flex-1">
             <Link
-              href={`/publicacion/${publicacion.id}`}
+              href={`/publicacion/?id=${publicacion.id}`}
               className="clamp-1 font-semibold text-fg"
             >
               {publicacion.titulo}

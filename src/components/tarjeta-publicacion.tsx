@@ -14,7 +14,7 @@ export function TarjetaPublicacion({ publicacion }: { publicacion: Publicacion }
 
   return (
     <Link
-      href={`/publicacion/${publicacion.id}`}
+      href={`/publicacion/?id=${publicacion.id}`}
       className="tarjeta pulsable asoma flex gap-3 p-2.5"
     >
       <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-surface-2">

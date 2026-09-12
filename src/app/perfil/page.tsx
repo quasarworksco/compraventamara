@@ -258,7 +258,7 @@ function AvisoVencimiento({ publicacion }: { publicacion: Publicacion }) {
         vencida ? "border-danger/40 bg-danger/8" : "border-line bg-surface shadow-card"
       }`}
     >
-      <Link href={`/publicacion/${publicacion.id}`} className="clamp-1 font-semibold text-fg">
+      <Link href={`/publicacion/?id=${publicacion.id}`} className="clamp-1 font-semibold text-fg">
         {publicacion.titulo}
       </Link>
 
