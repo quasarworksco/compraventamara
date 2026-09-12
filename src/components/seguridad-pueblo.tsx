@@ -17,7 +17,7 @@ export function SeguridadPueblo() {
 
       <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
         <div className="flex items-start gap-3 border-b border-line bg-brand-600 p-4 text-white">
-          <span className="mt-0.5 shrink-0 text-sun-300">
+          <span className="mt-0.5 shrink-0 text-verde-300">
             <IconVerified size={22} />
           </span>
           <div>

@@ -208,3 +208,20 @@ export const RUBROS_NEGOCIO: GrupoRubros[] = [
 
 /** Lista plana de todos los rubros, para validar y para los selectores. */
 export const CATEGORIAS_NEGOCIO: string[] = RUBROS_NEGOCIO.flatMap((g) => g.rubros);
+
+/** Loterías con las que juegan las rifas del pueblo. */
+export const LOTERIAS: string[] = [
+  "Triple Zulia",
+  "Triple Táchira",
+  "Triple Caracas",
+  "Triple Caliente",
+  "Triple Gordo",
+  "Chance",
+  "Lotto Rey",
+  "La Granjita",
+  "Selva Plus",
+  "Trío Activo",
+  "Guácharo Activo",
+  "Ricachona",
+  "Otra lotería",
+];

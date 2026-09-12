@@ -11,7 +11,7 @@
  */
 
 /** Los cuatro módulos del grupo. */
-export type TipoPublicacion = "producto" | "negocio" | "mototaxi" | "dolar";
+export type TipoPublicacion = "producto" | "negocio" | "mototaxi" | "dolar" | "rifa";
 
 /** Días que vive una publicación del marketplace antes de vencer. */
 export const DIAS_VIGENCIA = 30;
@@ -124,11 +124,31 @@ export interface PublicacionDolar extends PublicacionBase {
   metodos: MetodoPago[];
 }
 
+/** Rifa del pueblo: premio, precio del número, lotería y día del sorteo. */
+export interface PublicacionRifa extends PublicacionBase {
+  tipo: "rifa";
+  /** Qué se rifa. */
+  premio: string;
+  precioNumero: number;
+  moneda: Moneda;
+  /** Lotería con la que juega, p. ej. "Triple Zulia". */
+  loteria: string;
+  /** Fecha del sorteo en formato ISO corto (AAAA-MM-DD). */
+  fechaSorteo: string;
+  /** Sorteo del día, p. ej. "Zulia A" o "8:00 pm". Opcional. */
+  sorteo?: string;
+  /** Cuántos números tiene la rifa. */
+  totalNumeros: number;
+  /** Cuántos quedan por vender. Lo actualiza quien la organiza. */
+  numerosDisponibles: number;
+}
+
 export type Publicacion =
   | PublicacionProducto
   | PublicacionNegocio
   | PublicacionMototaxi
-  | PublicacionDolar;
+  | PublicacionDolar
+  | PublicacionRifa;
 
 /* ----------------------------------------------------------------- */
 /* Tasas del dólar                                                    */
@@ -162,8 +182,12 @@ export interface Mensaje {
   /** Imagen opcional alojada en Cloudinary. */
   imagenUrl?: string;
   creadoEn: number;
-  /** creadoEn + 36 h. La política TTL de Firestore borra el documento. */
-  expiraEn: number;
+  /**
+   * El documento guarda además `expiraEn` como Timestamp de Firestore
+   * (creadoEn + 36 h), que es lo que lee la política TTL para borrarlo.
+   * No se declara aquí porque la interfaz nunca lo lee: para saber si un
+   * mensaje sigue vigente basta con `creadoEn`.
+   */
 }
 
 export interface Chat {
@@ -174,5 +198,4 @@ export interface Chat {
   publicacionTitulo?: string;
   ultimoMensaje: string;
   actualizadoEn: number;
-  expiraEn: number;
 }

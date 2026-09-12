@@ -13,12 +13,12 @@ import { useState, type FormEvent } from "react";
 
 import {
   IconChat,
-  IconChevronRight,
   IconDollar,
   IconMoto,
   IconSearch,
   IconStore,
   IconTag,
+  IconTicket,
   IconUser,
   LogoMark,
 } from "@/components/icons";
@@ -55,6 +55,18 @@ const SECCIONES = [
     titulo: "Dólares",
     detalle: "Efectivo en venta",
     Icono: IconDollar,
+  },
+  {
+    href: "/rifas",
+    titulo: "Rifas",
+    detalle: "Números y sorteos",
+    Icono: IconTicket,
+  },
+  {
+    href: "/chat",
+    titulo: "Chat en vivo",
+    detalle: "Habla con el pueblo",
+    Icono: IconChat,
   },
 ] as const;
 
@@ -160,21 +172,6 @@ export default function Portada() {
           ))}
         </div>
 
-        <Link
-          href="/chat"
-          className="mt-2.5 flex min-h-14 items-center gap-3 rounded-card border border-line bg-surface px-4 shadow-card active:bg-surface-2"
-        >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sun-100 text-sun-600 dark:bg-sun-600/25 dark:text-sun-200">
-            <IconChat size={20} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[15px] font-semibold text-fg">Chat en vivo</span>
-            <span className="block text-xs text-fg-muted">
-              Conversa con el pueblo en tiempo real
-            </span>
-          </span>
-          <IconChevronRight size={18} className="shrink-0 text-fg-subtle" />
-        </Link>
       </section>
 
       {/* Lo último publicado */}

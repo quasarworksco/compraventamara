@@ -93,7 +93,27 @@ export const ETIQUETA_TIPO: Record<TipoPublicacion, string> = {
   negocio: "Negocio",
   mototaxi: "Mototaxi",
   dolar: "Divisas",
+  rifa: "Rifa",
 };
+
+/** Fecha de sorteo legible: "sábado 4 de octubre". */
+export function formatearFecha(iso: string): string {
+  // Se fija el mediodía UTC para que el día no se corra por la zona horaria.
+  const fecha = new Date(`${iso}T12:00:00Z`);
+  if (Number.isNaN(fecha.getTime())) return iso;
+  return fecha.toLocaleDateString("es-VE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+/** Días que faltan para una fecha ISO. Negativo si ya pasó. */
+export function diasHasta(iso: string): number {
+  const objetivo = new Date(`${iso}T23:59:59Z`).getTime();
+  if (Number.isNaN(objetivo)) return 0;
+  return Math.ceil((objetivo - Date.now()) / 86_400_000);
+}
 
 /** Texto para buscar: sin acentos y en minúsculas. */
 export function normalizarBusqueda(texto: string): string {

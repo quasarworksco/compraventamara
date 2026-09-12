@@ -213,8 +213,8 @@ export function Avatar({
 }) {
   if (url) {
     // Imagen remota de Cloudinary: <img> evita configurar dominios en next/image.
-    // eslint-disable-next-line @next/next/no-img-element
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={url}
         alt=""
@@ -241,12 +241,12 @@ export function Insignia({
   tono = "neutro",
 }: {
   children: ReactNode;
-  tono?: "neutro" | "marca" | "sol" | "compra" | "venta";
+  tono?: "neutro" | "marca" | "verde" | "compra" | "venta";
 }) {
   const tonos = {
     neutro: "bg-surface-2 text-fg-muted",
     marca: "bg-brand-100 text-brand-700 dark:bg-brand-800 dark:text-brand-100",
-    sol: "bg-sun-100 text-sun-600 dark:bg-sun-600/25 dark:text-sun-200",
+    verde: "bg-verde-100 text-verde-600 dark:bg-verde-600/25 dark:text-verde-200",
     compra: "bg-success/12 text-success",
     venta: "bg-sell/12 text-sell",
   } as const;

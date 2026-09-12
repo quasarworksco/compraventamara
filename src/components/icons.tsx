@@ -92,6 +92,16 @@ export function IconDollar(props: IconProps) {
   );
 }
 
+/** Rifas: el ticket con el número. */
+export function IconTicket(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 8.4V6.5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v1.9a2.6 2.6 0 0 0 0 5.2v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a2.6 2.6 0 0 0 0-5.2Z" />
+      <path d="M14.2 5.5v2M14.2 11v2M14.2 16.5v2" />
+    </Icon>
+  );
+}
+
 export function IconChat(props: IconProps) {
   return (
     <Icon {...props}>
@@ -327,7 +337,7 @@ export function LogoMark({ size = 32, ...props }: IconProps) {
       <rect width="32" height="32" rx="9" fill="currentColor" />
       <path
         d="M10.6 12.4h8.3M16.4 9l3.2 3.4-3.2 3.4"
-        stroke="var(--color-sun-300)"
+        stroke="var(--color-verde-300)"
         strokeWidth="2.1"
         strokeLinecap="round"
         strokeLinejoin="round"

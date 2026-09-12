@@ -23,7 +23,14 @@ import {
 
 import { db, firebaseListo } from "./firebase";
 import { normalizarBusqueda } from "./formato";
-import type { Miembro, Publicacion, TipoPublicacion } from "./types";
+import {
+  DIAS_AVISO_VENCIMIENTO,
+  DIAS_VIGENCIA,
+  MS_POR_DIA,
+  type Miembro,
+  type Publicacion,
+  type TipoPublicacion,
+} from "./types";
 
 const COLECCION = "publicaciones";
 
@@ -40,18 +47,25 @@ export interface ResultadoLista {
   error: string | null;
 }
 
-/** Suscripción en vivo a las publicaciones activas. */
+/**
+ * Suscripción en vivo a las publicaciones activas.
+ *
+ * El estado guarda la consulta que lo produjo. Así "está cargando" se deduce
+ * comparando esa clave con la actual, en vez de escribir estado dentro del
+ * efecto, que provocaría un renderizado en cascada en cada cambio de filtro.
+ */
 export function usePublicaciones(opciones: OpcionesLista = {}): ResultadoLista {
   const { tipo, autorUid, tope = 60 } = opciones;
-  const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const clave = `${tipo ?? ""}|${autorUid ?? ""}|${tope}`;
+
+  const [estado, setEstado] = useState<{
+    clave: string;
+    publicaciones: Publicacion[];
+    error: string | null;
+  }>({ clave: "", publicaciones: [], error: null });
 
   useEffect(() => {
-    if (!firebaseListo) {
-      setCargando(false);
-      return;
-    }
+    if (!firebaseListo) return;
 
     const restricciones: QueryConstraint[] = [];
     if (tipo) restricciones.push(where("tipo", "==", tipo));
@@ -59,58 +73,73 @@ export function usePublicaciones(opciones: OpcionesLista = {}): ResultadoLista {
     else restricciones.push(where("estado", "==", "activa"));
     restricciones.push(orderBy("creadaEn", "desc"), limitar(tope));
 
-    setCargando(true);
     return onSnapshot(
       query(collection(db(), COLECCION), ...restricciones),
       (snapshot) => {
-        setPublicaciones(
-          snapshot.docs.map((d) => ({ ...(d.data() as Publicacion), id: d.id })),
-        );
-        setCargando(false);
-        setError(null);
+        setEstado({
+          clave,
+          publicaciones: snapshot.docs.map((d) => ({ ...(d.data() as Publicacion), id: d.id })),
+          error: null,
+        });
       },
-      (fallo) => {
-        setError(fallo.message);
-        setCargando(false);
-      },
+      (fallo) => setEstado({ clave, publicaciones: [], error: fallo.message }),
     );
-  }, [tipo, autorUid, tope]);
+  }, [clave, tipo, autorUid, tope]);
 
-  return { publicaciones, cargando, error };
+  return {
+    publicaciones: estado.clave === clave ? estado.publicaciones : [],
+    cargando: firebaseListo && estado.clave !== clave,
+    error: estado.error,
+  };
 }
 
 /** Suscripción a una publicación concreta. */
 export function usePublicacion(id: string) {
-  const [publicacion, setPublicacion] = useState<Publicacion | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const [estado, setEstado] = useState<{ clave: string; publicacion: Publicacion | null }>({
+    clave: "",
+    publicacion: null,
+  });
 
   useEffect(() => {
-    if (!firebaseListo || !id) {
-      setCargando(false);
-      return;
-    }
+    if (!firebaseListo || !id) return;
     return onSnapshot(
       doc(db(), COLECCION, id),
       (snapshot) => {
-        setPublicacion(
-          snapshot.exists() ? ({ ...(snapshot.data() as Publicacion), id: snapshot.id }) : null,
-        );
-        setCargando(false);
+        setEstado({
+          clave: id,
+          publicacion: snapshot.exists()
+            ? { ...(snapshot.data() as Publicacion), id: snapshot.id }
+            : null,
+        });
       },
-      () => setCargando(false),
+      () => setEstado({ clave: id, publicacion: null }),
     );
   }, [id]);
 
-  return { publicacion, cargando };
+  const resuelto = estado.clave === id;
+  return {
+    publicacion: resuelto ? estado.publicacion : null,
+    cargando: firebaseListo && Boolean(id) && !resuelto,
+  };
 }
 
+/**
+ * `Omit` aplicado a cada miembro de la unión por separado.
+ *
+ * El `Omit` normal colapsa la unión y se pierde el discriminante `tipo`, con lo
+ * que dejaría de poder distinguirse un borrador de rifa de uno de producto.
+ */
+type OmitirEnCadaTipo<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 /** Campos que aporta quien publica; el resto se deriva de su perfil. */
-export type BorradorPublicacion = Omit<
+export type BorradorPublicacion = OmitirEnCadaTipo<
   Publicacion,
   | "id"
   | "creadaEn"
   | "actualizadaEn"
   | "estado"
+  | "venceEn"
+  | "prorrogas"
   | "autorUid"
   | "autorCodigo"
   | "autorNombre"
@@ -125,6 +154,65 @@ export type BorradorPublicacion = Omit<
  * Duplicar el nombre y el teléfono evita una segunda lectura por tarjeta, que
  * en una lista de 40 artículos se nota tanto en velocidad como en cuota.
  */
+/**
+ * Cuánto vive cada tipo de publicación.
+ *
+ * Un anuncio de venta aguanta un mes; una tasa de dólar envejece en horas, así
+ * que dura tres días; una rifa muere con su sorteo; y la ficha de un negocio
+ * del directorio no vence mientras su dueño la mantenga.
+ */
+export function calcularVencimiento(
+  tipo: TipoPublicacion,
+  datos: { fechaSorteo?: string } = {},
+): number {
+  const ahora = Date.now();
+  switch (tipo) {
+    case "dolar":
+      return ahora + 3 * MS_POR_DIA;
+    case "rifa": {
+      if (!datos.fechaSorteo) return ahora + DIAS_VIGENCIA * MS_POR_DIA;
+      // Un día de gracia tras el sorteo para que se anuncie al ganador.
+      return new Date(`${datos.fechaSorteo}T23:59:59Z`).getTime() + MS_POR_DIA;
+    }
+    case "negocio":
+      return AÑO_2100;
+    default:
+      return ahora + DIAS_VIGENCIA * MS_POR_DIA;
+  }
+}
+
+/** Centinela para las fichas que no vencen. */
+const AÑO_2100 = new Date("2100-01-01T00:00:00Z").getTime();
+
+/** Días que le quedan de vida a una publicación. */
+export function diasDeVida(publicacion: Publicacion): number {
+  return Math.ceil((publicacion.venceEn - Date.now()) / MS_POR_DIA);
+}
+
+/** Verdadero cuando toca avisar al dueño de que su anuncio está por vencer. */
+export function porVencer(publicacion: Publicacion): boolean {
+  if (publicacion.tipo === "negocio") return false;
+  const dias = diasDeVida(publicacion);
+  return dias <= DIAS_AVISO_VENCIMIENTO && dias > 0;
+}
+
+export function estaVencida(publicacion: Publicacion): boolean {
+  return publicacion.tipo !== "negocio" && publicacion.venceEn <= Date.now();
+}
+
+/**
+ * Prórroga: devuelve la publicación a los 30 días completos de vigencia.
+ * La pide el dueño desde su perfil cuando el sistema le avisa.
+ */
+export async function prorrogarPublicacion(publicacion: Publicacion): Promise<void> {
+  await updateDoc(doc(db(), COLECCION, publicacion.id), {
+    venceEn: Date.now() + DIAS_VIGENCIA * MS_POR_DIA,
+    prorrogas: (publicacion.prorrogas ?? 0) + 1,
+    estado: "activa",
+    actualizadaEn: Date.now(),
+  });
+}
+
 export async function crearPublicacion(
   borrador: BorradorPublicacion,
   autor: Miembro,
@@ -135,6 +223,11 @@ export async function crearPublicacion(
     estado: "activa",
     creadaEn: ahora,
     actualizadaEn: ahora,
+    venceEn: calcularVencimiento(
+      borrador.tipo,
+      borrador.tipo === "rifa" ? { fechaSorteo: borrador.fechaSorteo } : {},
+    ),
+    prorrogas: 0,
     autorUid: autor.uid,
     autorCodigo: autor.codigo,
     autorNombre: autor.nombre,

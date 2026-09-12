@@ -93,14 +93,11 @@ async function reservarCodigo(): Promise<string> {
 export function ProveedorSesion({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<User | null>(null);
   const [miembro, setMiembro] = useState<Miembro | null>(null);
-  const [cargando, setCargando] = useState(true);
+  // Sin credenciales de Firebase no hay sesión que resolver: nace ya resuelto.
+  const [cargando, setCargando] = useState(firebaseListo);
 
-  // Sin credenciales de Firebase no hay nada que escuchar.
   useEffect(() => {
-    if (!firebaseListo) {
-      setCargando(false);
-      return;
-    }
+    if (!firebaseListo) return;
     return onAuthStateChanged(auth(), (u) => {
       setUsuario(u);
       if (!u) {

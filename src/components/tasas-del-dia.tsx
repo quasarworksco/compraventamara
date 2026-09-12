@@ -69,7 +69,7 @@ function TarjetaTasa({
     <div
       className={`rounded-card border p-3.5 shadow-card ${
         acento
-          ? "border-sun-200 bg-sun-50 dark:border-sun-600/40 dark:bg-sun-600/12"
+          ? "border-verde-200 bg-verde-50 dark:border-verde-600/40 dark:bg-verde-600/12"
           : "border-line bg-surface"
       }`}
     >

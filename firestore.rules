@@ -1,0 +1,121 @@
+rules_version = '2';
+
+// ---------------------------------------------------------------
+// Reglas de seguridad de Mara Comercio.
+//
+// La clave de Firebase que viaja en el navegador es pública por diseño: lo
+// que de verdad protege los datos es este archivo. Se despliega con:
+//     firebase deploy --only firestore:rules
+// ---------------------------------------------------------------
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function esMio(uid) {
+      return autenticado() && request.auth.uid == uid;
+    }
+
+    function esAdmin() {
+      return autenticado()
+        && exists(/databases/$(database)/documents/miembros/$(request.auth.uid))
+        && get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    // Perfiles. Son públicos a propósito: la foto, el nombre y el teléfono son
+    // lo que permite reconocer a la otra persona antes de cerrar un trato.
+    match /miembros/{uid} {
+      allow read: if true;
+      allow create: if esMio(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.rol == 'miembro'
+        && request.resource.data.verificado == false
+        && request.resource.data.fotoUrl is string
+        && request.resource.data.fotoUrl.size() > 0;
+
+      // Nadie se asciende a sí mismo ni se autoverifica: eso lo hace un admin.
+      allow update: if esAdmin()
+        || (esMio(uid)
+            && request.resource.data.rol == resource.data.rol
+            && request.resource.data.verificado == resource.data.verificado
+            && request.resource.data.codigo == resource.data.codigo);
+
+      allow delete: if esAdmin();
+    }
+
+    // Correlativo de los identificadores MC-00000.
+    // Solo se deja incrementar de uno en uno, para que nadie queme el contador.
+    match /contadores/miembros {
+      allow read: if true;
+      allow write: if autenticado()
+        && request.resource.data.ultimo is int
+        && (!exists(/databases/$(database)/documents/contadores/miembros)
+            || request.resource.data.ultimo == resource.data.ultimo + 1);
+    }
+
+    // Publicaciones: mercado, negocios, mototaxis, dólares y rifas.
+    match /publicaciones/{id} {
+      allow read: if true;
+
+      allow create: if autenticado()
+        && request.resource.data.autorUid == request.auth.uid
+        && request.resource.data.titulo is string
+        && request.resource.data.titulo.size() > 0
+        && request.resource.data.tipo in ['producto', 'negocio', 'mototaxi', 'dolar', 'rifa'];
+
+      // El autor puede editar y prorrogar la suya; el autor no cambia nunca.
+      allow update: if esAdmin()
+        || (esMio(resource.data.autorUid)
+            && request.resource.data.autorUid == resource.data.autorUid);
+
+      allow delete: if esAdmin() || esMio(resource.data.autorUid);
+    }
+
+    // Chat en vivo. Los mensajes se borran solos a las 36 horas mediante la
+    // política TTL sobre el campo `expiraEn`; aquí solo se controla quién
+    // puede escribir y que nadie firme con el nombre de otro.
+    match /salas/{sala}/mensajes/{id} {
+      allow read: if true;
+
+      allow create: if autenticado()
+        && request.resource.data.autorUid == request.auth.uid
+        && request.resource.data.texto is string
+        && request.resource.data.texto.size() <= 1000
+        && request.resource.data.expiraEn is timestamp;
+
+      // Un mensaje no se edita: se borra. Así nadie reescribe lo que dijo.
+      allow update: if false;
+      allow delete: if esAdmin() || esMio(resource.data.autorUid);
+    }
+
+    // Conversaciones privadas entre dos miembros.
+    match /chats/{chatId} {
+      allow read, write: if autenticado() && request.auth.uid in request.resource.data.participantes;
+      allow read, delete: if autenticado() && request.auth.uid in resource.data.participantes;
+
+      match /mensajes/{id} {
+        allow read: if autenticado()
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantes;
+        allow create: if autenticado()
+          && request.resource.data.autorUid == request.auth.uid
+          && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantes;
+        allow update: if false;
+        allow delete: if esAdmin() || esMio(resource.data.autorUid);
+      }
+    }
+
+    // Respaldo manual de las tasas del dólar, por si la fuente pública falla.
+    match /configuracion/{documento} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
+    // Todo lo que no esté contemplado arriba queda cerrado.
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}

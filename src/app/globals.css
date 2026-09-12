@@ -6,25 +6,26 @@
    --------------------------------------------------------------- */
 
 @theme {
-  /* Marca: teal profundo (confianza) + sol (energía del mercado) */
-  --color-brand-50: #eafaf8;
-  --color-brand-100: #cbf0eb;
-  --color-brand-200: #9adfd8;
-  --color-brand-300: #63c8c1;
-  --color-brand-400: #35a9a4;
-  --color-brand-500: #178a88;
-  --color-brand-600: #0c6170;
-  --color-brand-700: #0a4f5c;
-  --color-brand-800: #093c47;
-  --color-brand-900: #062a33;
+  /* Marca: el azul del municipio Mara sobre blanco y negro. */
+  --color-brand-50: #eef4fc;
+  --color-brand-100: #d6e6f8;
+  --color-brand-200: #adccf0;
+  --color-brand-300: #7aade4;
+  --color-brand-400: #4a8bd4;
+  --color-brand-500: #2a6cba;
+  --color-brand-600: #1b5599;
+  --color-brand-700: #144278;
+  --color-brand-800: #0f3159;
+  --color-brand-900: #0a2139;
 
-  --color-sun-50: #fff8e6;
-  --color-sun-100: #ffecbf;
-  --color-sun-200: #ffd980;
-  --color-sun-300: #ffc540;
-  --color-sun-400: #f2a104;
-  --color-sun-500: #d18503;
-  --color-sun-600: #a66702;
+  /* Verde de la bandera: acento, nunca fondo de pantalla completa. */
+  --color-verde-50: #eaf7ef;
+  --color-verde-100: #cdeddb;
+  --color-verde-200: #9dd9b8;
+  --color-verde-300: #63bf90;
+  --color-verde-400: #35a26e;
+  --color-verde-500: #1f8657;
+  --color-verde-600: #176a45;
 
   /* Verde WhatsApp: reservado para los botones de contacto */
   --color-wa-400: #4ae07f;
@@ -33,8 +34,8 @@
 
   /* Semánticos */
   --color-danger: #d64545;
-  --color-success: #1a8f4a;
-  --color-buy: #1a8f4a;
+  --color-success: #1f8657;
+  --color-buy: #1f8657;
   --color-sell: #c2410c;
 
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
@@ -47,26 +48,26 @@
 
 /* Tokens de superficie — claro por defecto, oscuro automático */
 :root {
-  --bg: #f6f7f8;
+  --bg: #f4f6fa;
   --surface: #ffffff;
-  --surface-2: #f0f2f4;
-  --border: #e2e6ea;
-  --fg: #10191f;
-  --fg-muted: #5c6a75;
-  --fg-subtle: #8b97a1;
-  --overlay: rgb(6 42 51 / 0.45);
-  --shadow-card: 0 1px 2px rgb(6 42 51 / 0.06), 0 4px 12px rgb(6 42 51 / 0.05);
+  --surface-2: #eef1f6;
+  --border: #e0e5ee;
+  --fg: #0b1220;
+  --fg-muted: #56627a;
+  --fg-subtle: #8592a8;
+  --overlay: rgb(10 33 57 / 0.45);
+  --shadow-card: 0 1px 2px rgb(10 33 57 / 0.06), 0 4px 12px rgb(10 33 57 / 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0a1418;
-    --surface: #101e24;
-    --surface-2: #172930;
-    --border: #23373f;
-    --fg: #e8eef1;
-    --fg-muted: #9bacb5;
-    --fg-subtle: #6f838d;
+    --bg: #070b12;
+    --surface: #10161f;
+    --surface-2: #19212d;
+    --border: #26303f;
+    --fg: #e9eef5;
+    --fg-muted: #9aa7ba;
+    --fg-subtle: #6c7a90;
     --overlay: rgb(0 0 0 / 0.6);
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
   }
