@@ -260,21 +260,25 @@ export async function confirmarDisponibilidad(id: string): Promise<void> {
   });
 }
 
-/** La oferta de divisas vigente de un miembro, si tiene alguna. */
+/**
+ * La oferta de divisas vigente de un miembro, si tiene alguna.
+ *
+ * Se filtra por un solo campo a propósito. Combinar `tipo` y `autorUid` en la
+ * consulta obligaría a crear un índice compuesto a mano en la consola de
+ * Firebase; con una sola igualdad basta el índice que Firestore mantiene solo,
+ * y el resto se descarta aquí. Nadie tiene tantas publicaciones como para que
+ * la diferencia se note.
+ */
 export async function ofertaDolarActiva(uid: string): Promise<PublicacionDolar | null> {
   const resultado = await getDocs(
-    query(
-      collection(db(), COLECCION),
-      where("tipo", "==", "dolar"),
-      where("autorUid", "==", uid),
-      orderBy("creadaEn", "desc"),
-      limitar(5),
-    ),
+    query(collection(db(), COLECCION), where("autorUid", "==", uid), limitar(100)),
   );
 
   const vigente = resultado.docs
-    .map((d) => ({ ...(d.data() as PublicacionDolar), id: d.id }))
-    .find((o) => o.estado === "activa" && o.venceEn > Date.now());
+    .map((d) => ({ ...(d.data() as Publicacion), id: d.id }))
+    .filter((p): p is PublicacionDolar => p.tipo === "dolar")
+    .filter((o) => o.estado === "activa" && o.venceEn > Date.now())
+    .sort((a, b) => b.creadaEn - a.creadaEn)[0];
 
   return vigente ?? null;
 }
