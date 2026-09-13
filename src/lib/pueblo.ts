@@ -4,19 +4,10 @@
  * Viven en el código, no en Firestore, porque casi nunca cambian y así la
  * portada se sirve completa desde el primer momento, sin esperar a la red.
  *
- * IMPORTANTE: los teléfonos de abajo son marcadores de posición. Antes de
- * publicar hay que confirmarlos con la propia comandancia de Polimara, porque
- * un número mal puesto en una emergencia es peor que no tener ninguno.
+ * Los teléfonos de emergencia están confirmados. Si alguno cambia, este es el
+ * único sitio donde hay que tocarlo: un número mal puesto en una emergencia es
+ * peor que no tener ninguno.
  */
-
-export interface ContactoEmergencia {
-  id: string;
-  nombre: string;
-  detalle: string;
-  telefono: string;
-  /** Verdadero cuando el número ya se confirmó con el organismo. */
-  confirmado: boolean;
-}
 
 export const PUEBLO = {
   nombre: "San Rafael del Moján",
@@ -28,34 +19,60 @@ export const PUEBLO = {
     "Capital del municipio Mara, a orillas del Golfo de Venezuela. Un pueblo de gente trabajadora, comercio de puerta a puerta y patrullaje permanente.",
 } as const;
 
+/**
+ * Polimara: la policía municipal.
+ *
+ * Tiene dos sedes y varios canales, así que no cabe en una simple línea de
+ * teléfono como el resto. Los datos están confirmados por el propio cuerpo.
+ */
+export const POLIMARA = {
+  nombre: "Polimara",
+  detalle: "Policía Municipal de Mara",
+  sedes: [
+    {
+      nombre: "CCP N.° 1",
+      direccion: "Av. 3, sector El Uveral. San Rafael, municipio Mara, 4044",
+    },
+    {
+      nombre: "EP N.° 11",
+      direccion: "Sector Las Cruces, parroquia Ricaurte, 4044",
+    },
+  ],
+  telefono: { visible: "(+58) 262 872-0018", marcar: "+582628720018" },
+  /**
+   * La línea gratuita se muestra tal cual, sin enlace para llamar: el esquema
+   * `tel:` no admite letras de forma fiable y un enlace roto en una emergencia
+   * es peor que ninguno. Quien la use marca las letras en su propio teclado.
+   */
+  gratuito: "0800 POLIMARA",
+  correo: "policiademara@gmail.com",
+} as const;
+
+/** Teléfonos de emergencia que se marcan de un toque. */
+export interface ContactoEmergencia {
+  id: string;
+  nombre: string;
+  detalle: string;
+  /** Como se lee en pantalla. */
+  visible: string;
+  /** Como lo recibe el marcador del teléfono. */
+  marcar: string;
+}
+
 export const CONTACTOS: ContactoEmergencia[] = [
-  {
-    id: "polimara",
-    nombre: "Polimara",
-    detalle: "Policía Municipal de Mara",
-    telefono: "0262-000-0000",
-    confirmado: false,
-  },
-  {
-    id: "atencion-ciudadano",
-    nombre: "Atención al Ciudadano",
-    detalle: "Alcaldía del municipio Mara",
-    telefono: "0262-000-0000",
-    confirmado: false,
-  },
   {
     id: "emergencias",
     nombre: "Emergencias 911",
     detalle: "Sistema Nacional de Emergencias",
-    telefono: "911",
-    confirmado: true,
+    visible: "911",
+    marcar: "911",
   },
   {
     id: "bomberos",
     nombre: "Bomberos de Mara",
-    detalle: "Atención de incendios y rescate",
-    telefono: "0262-000-0000",
-    confirmado: false,
+    detalle: "Incendios y rescate",
+    visible: "+58 262-8720531",
+    marcar: "+582628720531",
   },
 ];
 

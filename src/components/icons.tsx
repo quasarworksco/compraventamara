@@ -251,6 +251,15 @@ export function IconPhone(props: IconProps) {
   );
 }
 
+export function IconMail(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="2.8" y="5" width="18.4" height="14" rx="2" />
+      <path d="m3.4 6.5 7.5 5.6a2 2 0 0 0 2.2 0l7.5-5.6" />
+    </Icon>
+  );
+}
+
 export function IconClock(props: IconProps) {
   return (
     <Icon {...props}>

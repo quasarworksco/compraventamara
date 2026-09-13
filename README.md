@@ -161,9 +161,9 @@ firestore.rules   Quién puede leer y escribir qué
 
 ## Pendientes antes de abrir al público
 
-- [ ] **Confirmar los teléfonos de emergencia** de `src/lib/pueblo.ts` con
-      Polimara, la alcaldía y los bomberos. Hoy son marcadores de posición y
-      están señalados como tales en la propia portada.
+- [x] ~~Confirmar los teléfonos de emergencia~~. Ya están los reales de
+      Polimara (sus dos sedes, el 0800 y el correo) y los bomberos. Si alguno
+      cambia, se toca en `src/lib/pueblo.ts` y en ningún otro sitio.
 - [ ] Comprobar en el navegador que alguna de las dos fuentes de tasas responde
       con CORS. Si no, cargar la tasa a mano desde `/admin`.
 - [ ] Limitar el preset de Cloudinary a imágenes y a un tamaño máximo.
