@@ -328,6 +328,45 @@ export function IconAlert(props: IconProps) {
   );
 }
 
+/**
+ * Vendedor Seguro: escudo con visto.
+ *
+ * Distinto a propósito del sello de verificado, que es una estrella dentada.
+ * Dos símbolos parecidos para dos niveles de confianza distintos serían peor
+ * que no distinguirlos: quien mira el tablón tiene que notar la diferencia de
+ * un vistazo, sin leer.
+ */
+export function IconEscudo(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 2.8 4.8 5.6v5.9c0 4.2 3 7.6 7.2 9.7 4.2-2.1 7.2-5.5 7.2-9.7V5.6L12 2.8Z" />
+      <path d="m8.9 11.8 2.2 2.2 4-4.3" />
+    </Icon>
+  );
+}
+
+/** Estadísticas del panel. */
+export function IconGrafico(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20V4" />
+      <path d="M4 20h16" />
+      <path d="M8.5 20v-6M13 20V8.5M17.5 20v-9" />
+    </Icon>
+  );
+}
+
+/** Descargar un archivo: bajar los datos a una hoja de cálculo. */
+export function IconDescargar(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3.5v11" />
+      <path d="m7.5 10.5 4.5 4.5 4.5-4.5" />
+      <path d="M4.5 17v2a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-2" />
+    </Icon>
+  );
+}
+
 export function IconArrowUp(props: IconProps) {
   return (
     <Icon {...props}>
