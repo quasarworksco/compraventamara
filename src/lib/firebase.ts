@@ -7,7 +7,7 @@
  */
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
+import { initializeFirestore, type Firestore } from "firebase/firestore";
 
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -43,6 +43,20 @@ export function auth(): Auth {
 }
 
 export function db(): Firestore {
-  if (!dbRef) dbRef = getFirestore(obtenerApp());
+  if (!dbRef) {
+    dbRef = initializeFirestore(obtenerApp(), {
+      /**
+       * Sin esto, Firestore rechaza el documento entero en cuanto un campo
+       * vale `undefined`, y `undefined` es justamente como se expresa aquí
+       * "este campo es opcional y quien publicó no lo llenó": el enlace de un
+       * negocio, el sorteo de una rifa, el sector de un perfil.
+       *
+       * Con la opción activada esos campos simplemente no se guardan, que es
+       * lo que se quería decir. Se arregla en la raíz a propósito: parchear
+       * cada formulario deja el fallo esperando al próximo campo opcional.
+       */
+      ignoreUndefinedProperties: true,
+    });
+  }
   return dbRef;
 }

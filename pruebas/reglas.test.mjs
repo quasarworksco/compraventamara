@@ -206,7 +206,7 @@ probar("Nadie salva su mensaje del borrado a las 36 horas", () =>
   assertFails(addDoc(collection(beto, "salas", "general", "mensajes"),
     mensajeDe(perfilBeto, { expiraEn: new Date(Date.now() + 365 * 86400000) }))));
 
-probar("No se pueden inventar salas nuevas", () =>
+probar("No se pueden inventar salas fuera de la general", () =>
   assertFails(addDoc(collection(beto, "salas", "inventada", "mensajes"), mensajeDe(perfilBeto))));
 
 probar("Un mensaje no se reescribe", async () => {

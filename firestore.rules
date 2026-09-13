@@ -197,7 +197,7 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if autenticado()
-        && sala in ['general', 'mercado', 'dolar', 'mototaxis']
+        && sala == 'general'
         && request.resource.data.autorUid == request.auth.uid
         && request.resource.data.autorCodigo ==
              get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.codigo

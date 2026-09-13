@@ -1,10 +1,12 @@
 /**
- * Definición de las salas del chat en vivo.
+ * La sala del chat en vivo.
  *
- * Vive aparte de `chat.ts` a propósito: ese módulo es `"use client"`, y lo que
- * un componente de servidor importa de un módulo de cliente no son los valores
- * sino una referencia opaca. La ruta `/chat/[sala]` valida el parámetro en el
- * servidor, así que necesita el arreglo de verdad.
+ * Hay una sola, y es deliberado: cuatro salas en un pueblo de este tamaño
+ * reparten a la poca gente que está escribiendo en un momento dado, y cuatro
+ * salas vacías se sienten más muertas que una con movimiento.
+ *
+ * La colección de Firestore sigue admitiendo el nombre de sala en la ruta por
+ * si algún día vuelven a hacer falta; hoy solo existe "general".
  */
 import type { SalaId } from "./types";
 
@@ -13,19 +15,4 @@ export const HORAS_DE_VIDA = 36;
 
 export const MS_DE_VIDA = HORAS_DE_VIDA * 60 * 60 * 1000;
 
-export interface Sala {
-  id: SalaId;
-  nombre: string;
-  detalle: string;
-}
-
-export const SALAS: Sala[] = [
-  { id: "general", nombre: "General", detalle: "Lo que pasa hoy en el pueblo" },
-  { id: "mercado", nombre: "Compra y venta", detalle: "Busco, vendo, cambio" },
-  { id: "dolar", nombre: "Dólares", detalle: "Tasas y disponibilidad al momento" },
-  { id: "mototaxis", nombre: "Mototaxis", detalle: "Carreras y disponibilidad" },
-];
-
-export function esSalaValida(valor: string): valor is SalaId {
-  return SALAS.some((sala) => sala.id === valor);
-}
+export const SALA_GENERAL: SalaId = "general";

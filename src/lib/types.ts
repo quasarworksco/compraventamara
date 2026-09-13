@@ -190,8 +190,8 @@ export interface Tasas {
 /* Chat                                                               */
 /* ----------------------------------------------------------------- */
 
-/** Salas públicas del chat en vivo, una por módulo. */
-export type SalaId = "general" | "mercado" | "dolar" | "mototaxis";
+/** La sala del chat en vivo. Hoy solo existe la general. */
+export type SalaId = "general";
 
 export interface Mensaje {
   id: string;

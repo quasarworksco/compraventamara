@@ -26,14 +26,17 @@ import {
 } from "firebase/firestore";
 
 import { db, firebaseListo } from "./firebase";
-import { MS_DE_VIDA } from "./salas";
+import { MS_DE_VIDA, SALA_GENERAL } from "./salas";
 import type { Mensaje, Miembro, SalaId } from "./types";
 
 /** Cuántos mensajes se traen como máximo al abrir una sala. */
 const TOPE_MENSAJES = 200;
 
-/** Suscripción en vivo a los mensajes vigentes de una sala. */
-export function useMensajes(sala: SalaId): { mensajes: Mensaje[]; cargando: boolean } {
+/** Suscripción en vivo a los mensajes vigentes de la sala. */
+export function useMensajes(sala: SalaId = SALA_GENERAL): {
+  mensajes: Mensaje[];
+  cargando: boolean;
+} {
   const [estado, setEstado] = useState<{ clave: string; mensajes: Mensaje[] }>({
     clave: "",
     mensajes: [],
@@ -71,10 +74,10 @@ export function useMensajes(sala: SalaId): { mensajes: Mensaje[]; cargando: bool
 
 /** Publica un mensaje en una sala. Devuelve sin esperar a que se confirme. */
 export async function enviarMensaje(
-  sala: SalaId,
   texto: string,
   autor: Miembro,
   imagenUrl?: string,
+  sala: SalaId = SALA_GENERAL,
 ): Promise<void> {
   const limpio = texto.trim();
   if (!limpio && !imagenUrl) return;
