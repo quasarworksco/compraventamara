@@ -32,7 +32,7 @@ service cloud.firestore {
       return autenticado()
         && 'email' in request.auth.token
         && request.auth.token.email is string
-        && request.auth.token.email.lower() == 'kevinbermudez1412@gmail.com'
+        && request.auth.token.email.lower() == 'paulalejo123@gmail.com'
         && 'email_verified' in request.auth.token
         && request.auth.token.email_verified == true;
     }

@@ -47,7 +47,7 @@ await entorno.withSecurityRulesDisabled(async (ctx) => {
 const ana = entorno.authenticatedContext(ANA).firestore();
 const beto = entorno.authenticatedContext(BETO).firestore();
 const dueno = entorno
-  .authenticatedContext(DUENO, { email: "kevinbermudez1412@gmail.com", email_verified: true })
+  .authenticatedContext(DUENO, { email: "paulalejo123@gmail.com", email_verified: true })
   .firestore();
 const visitante = entorno.unauthenticatedContext().firestore();
 
@@ -178,7 +178,7 @@ probar("Beto NO puede ni leer la lista de administradores", () =>
 probar("El dueño nombra a un administrador", () =>
   assertSucceeds(setDoc(doc(dueno, "administradores", ANA), {
     uid: ANA, email: "ana@x.com", nombre: "Ana", creadoEn: Date.now(),
-    creadoPor: "kevinbermudez1412@gmail.com",
+    creadoPor: "paulalejo123@gmail.com",
   })));
 
 /* --- Chat en vivo --- */
