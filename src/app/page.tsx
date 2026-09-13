@@ -23,6 +23,7 @@ import {
   IconUser,
   IconWhatsApp,
 } from "@/components/icons";
+import { DirectorioPortada } from "@/components/directorio-portada";
 import { Logotipo } from "@/components/logotipo";
 import { PizarraDivisas } from "@/components/pizarra-divisas";
 import { PortadaIglesia } from "@/components/portada-iglesia";
@@ -90,12 +91,16 @@ const SECCIONES = [
 ] as const;
 
 /** Estable entre renderizados: si se creara al vuelo, la lista se recalcularía sola. */
-const EXCLUIDOS_DEL_FEED: TipoPublicacion[] = ["divisa"];
+const EXCLUIDOS_DEL_FEED: TipoPublicacion[] = ["divisa", "negocio"];
 
 export default function Portada() {
   const { miembro, cargando, configurado } = useSesion();
-  // Las divisas quedan fuera de este feed: tienen su propia pizarra, y una
-  // oferta de cambio entre una moto y un celular no se lee ni se compara.
+  // Dos tipos quedan fuera de este feed, cada uno por su motivo. Las divisas
+  // tienen su propia pizarra: una oferta de cambio entre una moto y un celular
+  // ni se lee ni se compara. Los negocios, porque no caducan: la panadería del
+  // pueblo no es una novedad de esta semana, y ponerla en una lista llamada
+  // "publicado hace poco" la condena a hundirse en cuanto alguien venda algo.
+  // El directorio tiene su propia estantería más abajo.
   const { publicaciones, cargando: cargandoPublicaciones } = usePublicaciones({
     tope: 12,
     excluir: EXCLUIDOS_DEL_FEED,
@@ -232,11 +237,14 @@ export default function Portada() {
 
       </section>
 
-      {/* Lo último publicado */}
+      <DirectorioPortada />
+
+      {/* Lo último publicado: artículos, mototaxis y rifas. Los negocios no,
+          porque no son novedad de nadie: viven arriba, en el directorio. */}
       <section aria-labelledby="titulo-recientes" className="px-4">
         <div className="mb-2 flex items-baseline justify-between gap-2">
           <h2 id="titulo-recientes" className="text-sm font-semibold text-fg-muted">
-            Publicado hace poco
+            En venta hace poco
           </h2>
           <Link href="/mercado" className="text-sm font-semibold text-brand-600 dark:text-brand-300">
             Ver todo
@@ -250,7 +258,7 @@ export default function Portada() {
           </div>
         ) : publicaciones.length === 0 ? (
           <p className="rounded-card border border-dashed border-line px-4 py-8 text-center text-sm text-fg-muted">
-            Todavía no hay publicaciones. La primera puede ser la tuya.
+            Todavía no hay nada en venta. La primera publicación puede ser la tuya.
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">

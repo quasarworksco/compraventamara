@@ -24,6 +24,7 @@ const entorno = await initializeTestEnvironment({
 
 const ANA = "uid-ana";
 const BETO = "uid-beto";
+const CARLA = "uid-carla";
 const DUENO = "uid-dueno";
 
 const perfilAna = {
@@ -36,16 +37,26 @@ const perfilBeto = {
   telefono: "584129999999", fotoUrl: "https://res.cloudinary.com/x/beto.jpg",
   verificado: false, rol: "miembro", creadoEn: Date.now(),
 };
+// Carla es Vendedora Segura: verificada y, además, avalada por la
+// administración. Su distintivo es el que ordena el tablón de divisas.
+const perfilCarla = {
+  uid: CARLA, codigo: "MC-00003", nombre: "Carla", apellido: "Fuenmayor",
+  telefono: "584141111111", fotoUrl: "https://res.cloudinary.com/x/carla.jpg",
+  verificado: true, vendedorSeguro: true, seguroDesde: Date.now(),
+  rol: "miembro", creadoEn: Date.now(),
+};
 
 // Los perfiles se siembran saltándose las reglas: son el punto de partida.
 await entorno.withSecurityRulesDisabled(async (ctx) => {
   const bd = ctx.firestore();
   await setDoc(doc(bd, "miembros", ANA), perfilAna);
   await setDoc(doc(bd, "miembros", BETO), perfilBeto);
+  await setDoc(doc(bd, "miembros", CARLA), perfilCarla);
 });
 
 const ana = entorno.authenticatedContext(ANA).firestore();
 const beto = entorno.authenticatedContext(BETO).firestore();
+const carla = entorno.authenticatedContext(CARLA).firestore();
 const dueno = entorno
   .authenticatedContext(DUENO, { email: "paulalejo123@gmail.com", email_verified: true })
   .firestore();
@@ -85,6 +96,53 @@ probar("Beto NO puede poner el código de miembro de Ana", () =>
 
 probar("Beto NO puede firmar como Ana", () =>
   assertFails(addDoc(collection(beto, "publicaciones"), anuncioDe(perfilAna))));
+
+/* --- Vendedor Seguro --- */
+
+probar("Beto NO puede regalarse el distintivo de Vendedor Seguro", () =>
+  assertFails(addDoc(collection(beto, "publicaciones"),
+    anuncioDe(perfilBeto, { autorSeguro: true }))));
+
+probar("Ana, verificada pero sin aval, tampoco puede ponérselo", () =>
+  assertFails(addDoc(collection(ana, "publicaciones"),
+    anuncioDe(perfilAna, { autorSeguro: true }))));
+
+probar("Carla, avalada, sí publica con su distintivo", () =>
+  assertSucceeds(addDoc(collection(carla, "publicaciones"),
+    anuncioDe(perfilCarla, { autorSeguro: true }))));
+
+// Una página vieja en caché no manda el campo. Entenderse de menos no hace
+// daño a nadie, así que no puede dejar a una avalada sin poder publicar.
+probar("Carla publica aunque su navegador no mande el distintivo", () =>
+  assertSucceeds(addDoc(collection(carla, "publicaciones"), anuncioDe(perfilCarla))));
+
+probar("Beto NO puede nombrarse a sí mismo Vendedor Seguro", () =>
+  assertFails(updateDoc(doc(beto, "miembros", BETO), { vendedorSeguro: true })));
+
+probar("Carla NO puede colarle el distintivo al anuncio de Beto", async () => {
+  let id;
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "publicaciones"), anuncioDe(perfilBeto));
+    id = ref.id;
+  });
+  await assertFails(updateDoc(doc(carla, "publicaciones", id), { autorSeguro: true }));
+});
+
+probar("Beto NO se pone el distintivo editando su propio anuncio", async () => {
+  let id;
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "publicaciones"), anuncioDe(perfilBeto));
+    id = ref.id;
+  });
+  await assertFails(updateDoc(doc(beto, "publicaciones", id), {
+    autorSeguro: true, actualizadaEn: Date.now(),
+  }));
+});
+
+probar("El dueño sí avala a Beto como Vendedor Seguro", () =>
+  assertSucceeds(updateDoc(doc(dueno, "miembros", BETO), {
+    vendedorSeguro: true, seguroDesde: Date.now(),
+  })));
 
 /* --- Publicaciones: divisas y verificación --- */
 

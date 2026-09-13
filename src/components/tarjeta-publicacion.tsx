@@ -7,7 +7,7 @@ import { miniatura } from "@/lib/cloudinary";
 import { formatearPrecio, hace, iniciales } from "@/lib/formato";
 import type { Publicacion } from "@/lib/types";
 import { IconImage, IconPin } from "./icons";
-import { Avatar, Insignia, SelloVerificado } from "./ui";
+import { Avatar, Insignia, SelloSeguro, SelloVerificado } from "./ui";
 
 export function TarjetaPublicacion({
   publicacion,
@@ -71,7 +71,11 @@ export function TarjetaPublicacion({
             nombre={iniciales(publicacion.autorNombre, publicacion.autorApellido)}
           />
           <span className="clamp-1 min-w-0">{publicacion.autorNombre}</span>
-          {publicacion.autorVerificado ? <SelloVerificado size={13} /> : null}
+          {publicacion.autorSeguro ? (
+            <SelloSeguro size={14} />
+          ) : publicacion.autorVerificado ? (
+            <SelloVerificado size={13} />
+          ) : null}
           <span aria-hidden="true">·</span>
           <span className="shrink-0">{hace(publicacion.creadaEn)}</span>
         </div>

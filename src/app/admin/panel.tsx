@@ -3,52 +3,72 @@
 /**
  * Panel de administración.
  *
- * Cuatro pestañas, ni una más: miembros, publicaciones, tasas y —solo para el
+ * El panel no está para mirar cifras bonitas: está para decidir. Cada número
+ * del resumen tiene una acción detrás —a quién verificar, qué sector está
+ * vacío, quién sostiene el tablón de divisas— y lo que no lleva a una decisión
+ * no se pinta.
+ *
+ * Cinco pestañas: resumen, miembros, publicaciones, tasas y —solo para el
  * correo dueño— administradores.
  */
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { User } from "firebase/auth";
 
 import {
   IconAlert,
   IconCheck,
+  IconDescargar,
   IconDollar,
+  IconEscudo,
+  IconGrafico,
   IconLogout,
+  IconSearch,
   IconTag,
   IconTrash,
   IconUser,
   IconVerified,
 } from "@/components/icons";
+import { Barras, Cifra, Cifras, Tendencia } from "@/components/grafico";
 import {
   Avatar,
   Aviso,
   Boton,
   Campo,
   Esqueleto,
+  EstadoVacio,
   Insignia,
+  SelloSeguro,
   SelloVerificado,
 } from "@/components/ui";
 import { mensajeFirestore } from "@/lib/errores";
 import {
+  cambiarVendedorSeguro,
   cambiarVerificacion,
   nombrarAdministrador,
   quitarAdministrador,
   useAdministradores,
   useMiembros,
+  useTodasLasPublicaciones,
   type NivelAdmin,
 } from "@/lib/admin";
+import { DIAS_TENDENCIA, calcularResumen } from "@/lib/estadisticas";
+import { exportarMiembros, exportarPublicaciones } from "@/lib/exportar";
 import {
   ETIQUETA_TIPO,
+  formatearTasa,
   formatearTelefono,
   hace,
   iniciales,
   nombreCompleto,
+  normalizarBusqueda,
 } from "@/lib/formato";
-import { borrarPublicacion, usePublicaciones } from "@/lib/publicaciones";
+import { borrarPublicacion } from "@/lib/publicaciones";
+import { useAhora } from "@/lib/reloj";
 import { guardarTasasManuales, useTasas } from "@/lib/tasas";
+import type { Miembro, Publicacion, TipoPublicacion } from "@/lib/types";
 
-type Pestana = "miembros" | "publicaciones" | "tasas" | "administradores";
+type Pestana = "resumen" | "miembros" | "publicaciones" | "tasas" | "administradores";
 
 export function PanelAdmin({
   usuario,
@@ -59,10 +79,11 @@ export function PanelAdmin({
   nivel: NivelAdmin;
   alSalir: () => Promise<void>;
 }) {
-  const [pestana, setPestana] = useState<Pestana>("miembros");
+  const [pestana, setPestana] = useState<Pestana>("resumen");
   const esDueno = nivel === "dueno";
 
   const pestanas: { id: Pestana; etiqueta: string; Icono: typeof IconUser }[] = [
+    { id: "resumen", etiqueta: "Resumen", Icono: IconGrafico },
     { id: "miembros", etiqueta: "Miembros", Icono: IconUser },
     { id: "publicaciones", etiqueta: "Publicaciones", Icono: IconTag },
     { id: "tasas", etiqueta: "Tasas", Icono: IconDollar },
@@ -116,6 +137,7 @@ export function PanelAdmin({
       </header>
 
       <main className="px-4 py-4">
+        {pestana === "resumen" ? <SeccionResumen /> : null}
         {pestana === "miembros" ? <SeccionMiembros /> : null}
         {pestana === "publicaciones" ? <SeccionPublicaciones /> : null}
         {pestana === "tasas" ? <SeccionTasas /> : null}
@@ -128,20 +150,253 @@ export function PanelAdmin({
 }
 
 /* ----------------------------------------------------------------- */
+/* Resumen                                                            */
+/* ----------------------------------------------------------------- */
+
+function SeccionResumen() {
+  const { miembros, cargando: cargandoMiembros } = useMiembros(true);
+  const { publicaciones, cargando: cargandoPublicaciones } = useTodasLasPublicaciones(true);
+  const { tasas } = useTasas();
+  // La hora entra como dato y no se lee durante el render: así dos renders
+  // seguidos dan el mismo resumen, y las cuentas se refrescan solas.
+  const ahora = useAhora(5 * 60_000);
+
+  const resumen = useMemo(
+    () => calcularResumen(miembros, publicaciones, ahora),
+    [miembros, publicaciones, ahora],
+  );
+
+  if (cargandoMiembros || cargandoPublicaciones) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Esqueleto className="h-24" />
+        <Esqueleto className="h-40" />
+        <Esqueleto className="h-40" />
+      </div>
+    );
+  }
+
+  const { miembros: gente, publicaciones: anuncios, divisas } = resumen;
+  const participacion =
+    gente.total > 0 ? Math.round((gente.activos / gente.total) * 100) : 0;
+
+  return (
+    <section className="flex flex-col gap-4">
+      {gente.esperando > 0 ? (
+        <Aviso>
+          {gente.esperando === 1
+            ? "Hay 1 persona esperando verificación."
+            : `Hay ${gente.esperando} personas esperando verificación.`}{" "}
+          Sin el sello no pueden publicar en el tablón de divisas.
+        </Aviso>
+      ) : null}
+
+      {/* El pueblo */}
+      <div className="flex flex-col gap-2.5">
+        <h2 className="text-sm font-semibold text-fg-muted">El pueblo</h2>
+        <Cifras>
+          <Cifra
+            etiqueta="Miembros"
+            valor={gente.total}
+            detalle={`${gente.nuevos7} esta semana`}
+            tono="marca"
+          />
+          <Cifra
+            etiqueta="Verificados"
+            valor={gente.verificados}
+            detalle={
+              gente.esperando > 0 ? `${gente.esperando} en cola` : "nadie esperando"
+            }
+          />
+          <Cifra
+            etiqueta="Vendedores Seguros"
+            valor={gente.seguros}
+            detalle="avalados por ti"
+            tono={gente.seguros > 0 ? "aviso" : "neutro"}
+          />
+          <Cifra
+            etiqueta="Han publicado"
+            valor={`${participacion}%`}
+            detalle={`${gente.activos} de ${gente.total}`}
+          />
+          <Cifra
+            etiqueta="Nuevos en 30 días"
+            valor={gente.nuevos30}
+            detalle={gente.nuevos30 > 0 ? "sigue creciendo" : "sin registros"}
+          />
+          <Cifra
+            etiqueta="Publicaciones vivas"
+            valor={anuncios.activas}
+            detalle={`${anuncios.nuevas7} esta semana`}
+          />
+        </Cifras>
+        <p className="text-xs text-fg-subtle">
+          &laquo;Han publicado&raquo; es la cifra que dice si la plataforma se usa o solo
+          se mira. Cuando baja, lo que falta no son miembros: son motivos para publicar.
+        </p>
+      </div>
+
+      <Tendencia
+        titulo={`Publicaciones por día (${DIAS_TENDENCIA} días)`}
+        datos={resumen.actividad}
+        unidad="Publicaciones"
+      />
+
+      <Tendencia
+        titulo={`Registros por día (${DIAS_TENDENCIA} días)`}
+        datos={resumen.registros}
+        unidad="Registros"
+      />
+
+      <Barras
+        titulo="Qué se publica"
+        datos={anuncios.porTipo}
+        unidad="Vivas"
+        vacio="Todavía no hay publicaciones vivas."
+      />
+
+      {/* Divisas */}
+      <div className="flex flex-col gap-2.5">
+        <h2 className="text-sm font-semibold text-fg-muted">Tablón de divisas</h2>
+        <Cifras>
+          <Cifra
+            etiqueta="Ofertas vivas"
+            valor={divisas.ofertasVivas}
+            detalle={`${divisas.cambistas} ${
+              divisas.cambistas === 1 ? "persona" : "personas"
+            }`}
+            tono="marca"
+          />
+          <Cifra
+            etiqueta="Venden el dólar a"
+            valor={divisas.tasaVentaUsd ? formatearTasa(divisas.tasaVentaUsd) : "—"}
+            detalle="promedio de las ofertas"
+          />
+          <Cifra
+            etiqueta="Lo compran a"
+            valor={divisas.tasaCompraUsd ? formatearTasa(divisas.tasaCompraUsd) : "—"}
+            detalle="promedio de las ofertas"
+          />
+        </Cifras>
+        {tasas.bcv && divisas.tasaVentaUsd ? (
+          <p className="text-xs text-fg-subtle">
+            El pueblo vende {formatearTasa(divisas.tasaVentaUsd)} frente a los{" "}
+            {formatearTasa(tasas.bcv)} del BCV.
+          </p>
+        ) : null}
+      </div>
+
+      <Barras
+        titulo="Sectores con más movimiento"
+        datos={resumen.zonas}
+        unidad="Vivas"
+        vacio="Todavía no hay publicaciones con sector."
+      />
+
+      <Barras
+        titulo="Categorías y rubros más publicados"
+        datos={resumen.categorias}
+        unidad="Vivas"
+        vacio="Todavía no hay categorías."
+      />
+
+      {/* Quién sostiene esto */}
+      {resumen.masActivos.length > 0 ? (
+        <div className="flex flex-col gap-2.5">
+          <h2 className="text-sm font-semibold text-fg-muted">Quién publica más</h2>
+          <ul className="tarjeta overflow-hidden">
+            {resumen.masActivos.map((fila) => (
+              <li
+                key={fila.codigo || fila.nombre}
+                className="flex items-center gap-3 border-b border-line px-3 py-2.5 last:border-0"
+              >
+                <Avatar
+                  size={34}
+                  url={fila.miembro?.fotoUrl}
+                  nombre={
+                    fila.miembro
+                      ? iniciales(fila.miembro.nombre, fila.miembro.apellido)
+                      : "?"
+                  }
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="clamp-1 flex items-center gap-1 text-sm font-semibold text-fg">
+                    {fila.nombre}
+                    {fila.miembro?.vendedorSeguro ? <SelloSeguro size={13} /> : null}
+                  </p>
+                  <p className="text-xs text-fg-subtle">{fila.codigo}</p>
+                </div>
+                <p className="shrink-0 text-sm font-bold tabular-nums text-fg">
+                  {fila.total}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-fg-subtle">
+            Son quienes sostienen el sitio. Si alguno se va, se nota; conviene tenerlos
+            contentos.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Extracción */}
+      <div className="flex flex-col gap-2.5 tarjeta p-3.5">
+        <h2 className="text-sm font-semibold text-fg">Llevarse los datos</h2>
+        <p className="text-xs text-fg-muted">
+          Se bajan como CSV, listo para abrir en Excel o en Google Sheets. Incluyen el
+          teléfono con el código de país, así que sirven para armar una difusión de
+          WhatsApp sin copiar nada a mano.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Boton
+            variante="secundario"
+            icono={<IconDescargar size={16} />}
+            onClick={() => exportarMiembros(miembros)}
+            disabled={miembros.length === 0}
+          >
+            Miembros ({miembros.length})
+          </Boton>
+          <Boton
+            variante="secundario"
+            icono={<IconDescargar size={16} />}
+            onClick={() => exportarPublicaciones(publicaciones, ahora)}
+            disabled={publicaciones.length === 0}
+          >
+            Publicaciones ({publicaciones.length})
+          </Boton>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ----------------------------------------------------------------- */
+/* Miembros                                                           */
+/* ----------------------------------------------------------------- */
+
+type FiltroMiembros = "todos" | "esperando" | "verificados" | "seguros";
+
+const FILTROS_MIEMBROS: { id: FiltroMiembros; etiqueta: string }[] = [
+  { id: "todos", etiqueta: "Todos" },
+  { id: "esperando", etiqueta: "Esperando" },
+  { id: "verificados", etiqueta: "Verificados" },
+  { id: "seguros", etiqueta: "Seguros" },
+];
 
 function SeccionMiembros() {
   const { miembros, cargando } = useMiembros(true);
   const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState<FiltroMiembros>("todos");
   // Sin esto, una escritura rechazada no dejaba rastro en pantalla: el botón
   // se pulsaba, la promesa se rompía en el vacío y todo seguía igual.
   const [fallo, setFallo] = useState<string | null>(null);
   const [trabajando, setTrabajando] = useState<string | null>(null);
 
-  async function alternarVerificacion(uid: string, verificado: boolean) {
+  async function ejecutar(uid: string, accion: () => Promise<void>) {
     setFallo(null);
     setTrabajando(uid);
     try {
-      await cambiarVerificacion(uid, verificado);
+      await accion();
     } catch (error) {
       setFallo(mensajeFirestore(error, "moderar"));
     } finally {
@@ -149,24 +404,35 @@ function SeccionMiembros() {
     }
   }
 
-  const filtrados = miembros.filter((m) =>
-    `${m.nombre} ${m.apellido} ${m.codigo} ${m.telefono}`
-      .toLowerCase()
-      .includes(busqueda.toLowerCase().trim()),
-  );
+  const esperando = (m: Miembro) => !m.verificado && m.solicitaVerificacion === true;
 
-  // Quien pidió la verificación va arriba: es la cola que hay que atender.
-  const visibles = [...filtrados].sort((a, b) => {
-    const esperaA = !a.verificado && a.solicitaVerificacion === true;
-    const esperaB = !b.verificado && b.solicitaVerificacion === true;
-    if (esperaA !== esperaB) return esperaA ? -1 : 1;
-    if (esperaA && esperaB) return (a.solicitadoEn ?? 0) - (b.solicitadoEn ?? 0);
-    return b.creadoEn - a.creadoEn;
-  });
+  const visibles = useMemo(() => {
+    const texto = normalizarBusqueda(busqueda.trim());
 
-  const pendientes = miembros.filter(
-    (m) => !m.verificado && m.solicitaVerificacion === true,
-  ).length;
+    const filtrados = miembros
+      .filter((m) => {
+        if (filtro === "esperando") return esperando(m);
+        if (filtro === "verificados") return m.verificado;
+        if (filtro === "seguros") return m.vendedorSeguro === true;
+        return true;
+      })
+      .filter((m) =>
+        texto
+          ? normalizarBusqueda(`${m.nombre} ${m.apellido} ${m.codigo} ${m.telefono}`).includes(
+              texto,
+            )
+          : true,
+      );
+
+    // Quien pidió la verificación va arriba: es la cola que hay que atender.
+    return [...filtrados].sort((a, b) => {
+      if (esperando(a) !== esperando(b)) return esperando(a) ? -1 : 1;
+      if (esperando(a) && esperando(b)) return (a.solicitadoEn ?? 0) - (b.solicitadoEn ?? 0);
+      return b.creadoEn - a.creadoEn;
+    });
+  }, [miembros, busqueda, filtro]);
+
+  const pendientes = miembros.filter(esperando).length;
 
   if (cargando) return <Esqueleto className="h-40" />;
 
@@ -190,69 +456,231 @@ function SeccionMiembros() {
         onChange={(e) => setBusqueda(e.target.value)}
       />
 
-      <p className="text-xs text-fg-subtle">
-        {visibles.length} de {miembros.length} miembros
-      </p>
+      <div className="scroll-x flex gap-2">
+        {FILTROS_MIEMBROS.map(({ id, etiqueta }) => (
+          <Chip key={id} activo={filtro === id} onClick={() => setFiltro(id)}>
+            {etiqueta}
+            {id === "esperando" && pendientes > 0 ? ` (${pendientes})` : ""}
+          </Chip>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-fg-subtle">
+          {visibles.length} de {miembros.length} miembros
+        </p>
+        <Boton
+          variante="fantasma"
+          icono={<IconDescargar size={15} />}
+          onClick={() => exportarMiembros(visibles)}
+          disabled={visibles.length === 0}
+          className="!min-h-9 !px-2 !text-sm"
+        >
+          Bajar CSV
+        </Boton>
+      </div>
+
+      {visibles.length === 0 ? (
+        <EstadoVacio
+          icono={<IconSearch size={24} />}
+          titulo="Nadie coincide"
+          detalle="Prueba con otro filtro o con otro texto."
+        />
+      ) : null}
 
       {visibles.map((miembro) => (
-        <article
+        <FilaMiembro
           key={miembro.uid}
-          className="flex items-center gap-3 tarjeta p-3"
-        >
-          <Avatar
-            size={44}
-            url={miembro.fotoUrl}
-            nombre={iniciales(miembro.nombre, miembro.apellido)}
-          />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <p className="clamp-1 font-semibold text-fg">
-                {nombreCompleto(miembro.nombre, miembro.apellido)}
-              </p>
-              {miembro.verificado ? <SelloVerificado size={14} /> : null}
-            </div>
-            <p className="text-xs text-fg-subtle">
-              {miembro.codigo} · {formatearTelefono(miembro.telefono)}
-            </p>
-            <p className="text-xs text-fg-subtle">Se registró {hace(miembro.creadoEn)}</p>
-            {!miembro.verificado && miembro.solicitaVerificacion ? (
-              <span className="mt-1 inline-block">
-                <Insignia tono="verde">
-                  Pidió verificación {hace(miembro.solicitadoEn ?? miembro.creadoEn)}
-                </Insignia>
-              </span>
-            ) : null}
-          </div>
-          <Boton
-            variante={miembro.verificado ? "secundario" : "primario"}
-            cargando={trabajando === miembro.uid}
-            onClick={() => alternarVerificacion(miembro.uid, !miembro.verificado)}
-            icono={miembro.verificado ? undefined : <IconCheck size={16} />}
-          >
-            {miembro.verificado ? "Quitar" : "Verificar"}
-          </Boton>
-        </article>
+          miembro={miembro}
+          ocupado={trabajando === miembro.uid}
+          alVerificar={() =>
+            ejecutar(miembro.uid, () =>
+              cambiarVerificacion(miembro.uid, !miembro.verificado),
+            )
+          }
+          alAsegurar={() =>
+            ejecutar(miembro.uid, () =>
+              cambiarVendedorSeguro(miembro.uid, !miembro.vendedorSeguro),
+            )
+          }
+        />
       ))}
     </section>
   );
 }
 
+function FilaMiembro({
+  miembro,
+  ocupado,
+  alVerificar,
+  alAsegurar,
+}: {
+  miembro: Miembro;
+  ocupado: boolean;
+  alVerificar: () => void;
+  alAsegurar: () => void;
+}) {
+  const seguro = miembro.vendedorSeguro === true;
+
+  return (
+    <article className="flex flex-col gap-3 tarjeta p-3">
+      <div className="flex items-center gap-3">
+        <Avatar
+          size={44}
+          url={miembro.fotoUrl}
+          nombre={iniciales(miembro.nombre, miembro.apellido)}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <p className="clamp-1 font-semibold text-fg">
+              {nombreCompleto(miembro.nombre, miembro.apellido)}
+            </p>
+            {miembro.verificado ? <SelloVerificado size={14} /> : null}
+            {seguro ? <SelloSeguro size={15} /> : null}
+          </div>
+          <p className="text-xs text-fg-subtle">
+            {miembro.codigo} · {formatearTelefono(miembro.telefono)}
+          </p>
+          <p className="text-xs text-fg-subtle">Se registró {hace(miembro.creadoEn)}</p>
+          {!miembro.verificado && miembro.solicitaVerificacion ? (
+            <span className="mt-1 inline-block">
+              <Insignia tono="verde">
+                Pidió verificación {hace(miembro.solicitadoEn ?? miembro.creadoEn)}
+              </Insignia>
+            </span>
+          ) : null}
+          {seguro && miembro.seguroDesde ? (
+            <p className="text-xs text-verde-600">Vendedor Seguro desde {hace(miembro.seguroDesde)}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Boton
+          variante={miembro.verificado ? "secundario" : "primario"}
+          cargando={ocupado}
+          onClick={alVerificar}
+          icono={miembro.verificado ? undefined : <IconCheck size={16} />}
+          className="!min-h-10 flex-1 !text-sm"
+        >
+          {miembro.verificado ? "Quitar verificación" : "Verificar"}
+        </Boton>
+
+        <Boton
+          variante="secundario"
+          cargando={ocupado}
+          onClick={alAsegurar}
+          disabled={!miembro.verificado}
+          icono={<IconEscudo size={16} />}
+          className={`!min-h-10 flex-1 !text-sm ${
+            seguro ? "" : "!border-verde-300 !text-verde-600"
+          }`}
+        >
+          {seguro ? "Quitar el aval" : "Vendedor Seguro"}
+        </Boton>
+      </div>
+
+      {!miembro.verificado ? (
+        <p className="text-xs text-fg-subtle">
+          El aval de Vendedor Seguro se da sobre una identidad ya comprobada: primero
+          verificar, después avalar.
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
+/* ----------------------------------------------------------------- */
+/* Publicaciones                                                      */
 /* ----------------------------------------------------------------- */
 
+type FiltroEstado = "vivas" | "vencidas" | "todas";
+
 function SeccionPublicaciones() {
-  const { publicaciones, cargando } = usePublicaciones({ tope: 200 });
+  const { publicaciones, cargando } = useTodasLasPublicaciones(true);
+  const ahora = useAhora(5 * 60_000);
+  const [busqueda, setBusqueda] = useState("");
+  const [tipo, setTipo] = useState<TipoPublicacion | null>(null);
+  const [estado, setEstado] = useState<FiltroEstado>("vivas");
+
+  const viva = (p: Publicacion) =>
+    p.estado === "activa" && (p.tipo === "negocio" || p.venceEn > ahora);
+
+  const visibles = useMemo(() => {
+    const texto = normalizarBusqueda(busqueda.trim());
+    return publicaciones
+      .filter((p) => (tipo ? p.tipo === tipo : true))
+      .filter((p) => {
+        if (estado === "vivas") return viva(p);
+        if (estado === "vencidas") return !viva(p);
+        return true;
+      })
+      .filter((p) =>
+        texto
+          ? normalizarBusqueda(
+              `${p.titulo} ${p.zona} ${p.autorNombre} ${p.autorApellido} ${p.autorCodigo}`,
+            ).includes(texto)
+          : true,
+      );
+    // `viva` depende de `ahora`, que ya está en las dependencias.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicaciones, busqueda, tipo, estado, ahora]);
 
   if (cargando) return <Esqueleto className="h-40" />;
 
   return (
-    <section className="flex flex-col gap-2.5">
-      <p className="text-xs text-fg-subtle">{publicaciones.length} publicaciones activas</p>
+    <section className="flex flex-col gap-3">
+      <Campo
+        etiqueta="Buscar publicación"
+        placeholder="Título, sector o autor"
+        value={busqueda}
+        onChange={(e) => setBusqueda(e.target.value)}
+      />
 
-      {publicaciones.map((publicacion) => (
-        <article
-          key={publicacion.id}
-          className="flex items-center gap-3 tarjeta p-3"
+      <div className="scroll-x flex gap-2">
+        <Chip activo={tipo === null} onClick={() => setTipo(null)}>
+          Todo
+        </Chip>
+        {(Object.keys(ETIQUETA_TIPO) as TipoPublicacion[]).map((id) => (
+          <Chip key={id} activo={tipo === id} onClick={() => setTipo(id)}>
+            {ETIQUETA_TIPO[id]}
+          </Chip>
+        ))}
+      </div>
+
+      <div className="scroll-x flex gap-2">
+        {(["vivas", "vencidas", "todas"] as FiltroEstado[]).map((id) => (
+          <Chip key={id} activo={estado === id} onClick={() => setEstado(id)}>
+            {id === "vivas" ? "Vivas" : id === "vencidas" ? "Vencidas o cerradas" : "Todas"}
+          </Chip>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-fg-subtle">
+          {visibles.length} de {publicaciones.length} publicaciones
+        </p>
+        <Boton
+          variante="fantasma"
+          icono={<IconDescargar size={15} />}
+          onClick={() => exportarPublicaciones(visibles, ahora)}
+          disabled={visibles.length === 0}
+          className="!min-h-9 !px-2 !text-sm"
         >
+          Bajar CSV
+        </Boton>
+      </div>
+
+      {visibles.length === 0 ? (
+        <EstadoVacio
+          icono={<IconSearch size={24} />}
+          titulo="Nada por aquí"
+          detalle="Prueba con otro filtro o con otro texto."
+        />
+      ) : null}
+
+      {visibles.map((publicacion) => (
+        <article key={publicacion.id} className="flex items-center gap-3 tarjeta p-3">
           <div className="min-w-0 flex-1">
             <Link
               href={`/publicacion/?id=${publicacion.id}`}
@@ -263,9 +691,10 @@ function SeccionPublicaciones() {
             <p className="clamp-1 text-xs text-fg-subtle">
               {publicacion.autorNombre} {publicacion.autorApellido} · {publicacion.autorCodigo}
             </p>
-            <div className="mt-1 flex gap-1.5">
+            <div className="mt-1 flex flex-wrap gap-1.5">
               <Insignia tono="marca">{ETIQUETA_TIPO[publicacion.tipo]}</Insignia>
               <Insignia>{hace(publicacion.creadaEn)}</Insignia>
+              {viva(publicacion) ? null : <Insignia tono="venta">Fuera del aire</Insignia>}
             </div>
           </div>
           <Boton
@@ -285,6 +714,34 @@ function SeccionPublicaciones() {
   );
 }
 
+/** Pastilla de filtro. La misma en las dos listas del panel. */
+function Chip({
+  activo,
+  onClick,
+  children,
+}: {
+  activo: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={activo}
+      className={`min-h-9 shrink-0 rounded-pill border px-3.5 text-sm font-medium ${
+        activo
+          ? "border-brand-600 bg-brand-600 text-white"
+          : "border-line bg-surface text-fg-muted"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ----------------------------------------------------------------- */
+/* Tasas                                                              */
 /* ----------------------------------------------------------------- */
 
 function SeccionTasas() {
@@ -353,6 +810,8 @@ function SeccionTasas() {
 }
 
 /* ----------------------------------------------------------------- */
+/* Administradores                                                    */
+/* ----------------------------------------------------------------- */
 
 function SeccionAdministradores({ correoDueno }: { correoDueno: string }) {
   const administradores = useAdministradores(true);
@@ -384,7 +843,8 @@ function SeccionAdministradores({ correoDueno }: { correoDueno: string }) {
     <section className="flex flex-col gap-4">
       <Aviso>
         Solo tú, como correo dueño, puedes nombrar o quitar administradores. Ellos podrán
-        verificar miembros, borrar publicaciones y cargar tasas, pero no repartir permisos.
+        verificar miembros, dar el aval de Vendedor Seguro, borrar publicaciones y cargar
+        tasas, pero no repartir permisos.
       </Aviso>
 
       <div className="flex flex-col gap-2.5">

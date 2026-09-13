@@ -73,6 +73,17 @@ export interface Miembro {
    * llave del tablón de divisas: sin verificar no se puede publicar allí.
    */
   verificado: boolean;
+  /**
+   * Distinción que da la administración por encima de la verificación.
+   *
+   * Verificar dice "esta persona es quien dice ser". Vendedor Seguro dice algo
+   * más fuerte: "de esta persona respondemos". Se reserva a quien ya tiene
+   * historial de cambios cumplidos, y por eso sus ofertas de divisas encabezan
+   * el tablón: quien llega nuevo al pueblo tiene a quién acudir primero.
+   */
+  vendedorSeguro?: boolean;
+  /** Desde cuándo lo es, para poder retirarlo con criterio. */
+  seguroDesde?: number;
   /** El miembro pidió que lo verifiquen y espera respuesta. */
   solicitaVerificacion?: boolean;
   /** Cuándo lo pidió, para que la administración atienda por orden. */
@@ -110,6 +121,12 @@ interface PublicacionBase {
   /** Foto del autor: en la venta de divisas es clave poder reconocer a la persona. */
   autorFoto: string;
   autorVerificado: boolean;
+  /**
+   * Copia de la distinción Vendedor Seguro. Como el resto de los datos del
+   * autor, las reglas la contrastan contra el perfil real: sin eso, cualquiera
+   * se pondría el distintivo que hace que le escriban a él primero.
+   */
+  autorSeguro: boolean;
 }
 
 export type Condicion = "nuevo" | "usado";

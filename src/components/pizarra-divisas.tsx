@@ -21,7 +21,7 @@ import { usePublicaciones } from "@/lib/publicaciones";
 import { useAhora } from "@/lib/reloj";
 import type { PublicacionDivisa } from "@/lib/types";
 import { BotonWhatsApp } from "./boton-whatsapp";
-import { Avatar, Esqueleto, SelloVerificado } from "./ui";
+import { Avatar, Esqueleto, SelloSeguro, SelloVerificado } from "./ui";
 
 /** Cuántas caben antes de que la portada se vuelva un tablón. */
 const MAXIMO = 4;
@@ -33,7 +33,16 @@ export function PizarraDivisas() {
   const ofertas = publicaciones
     .filter((p): p is PublicacionDivisa => p.tipo === "divisa")
     .filter((o) => o.venceEn > ahora)
-    .sort((a, b) => b.actualizadaEn - a.actualizadaEn)
+    // Los Vendedores Seguros van delante. Es el sentido de la distinción: en
+    // un tablón donde todas las ofertas se parecen, el pueblo tiene que ver
+    // primero a quien la administración avala, sobre todo quien llega nuevo.
+    // Dentro de cada grupo manda la confirmación más reciente, que sigue
+    // premiando a quien mantiene su oferta al día.
+    .sort(
+      (a, b) =>
+        Number(b.autorSeguro ?? false) - Number(a.autorSeguro ?? false) ||
+        b.actualizadaEn - a.actualizadaEn,
+    )
     .slice(0, MAXIMO);
 
   // Una pizarra vacía no aporta nada: si no hay ofertas, no se ocupa sitio.
@@ -80,7 +89,11 @@ function FilaDivisa({ oferta }: { oferta: PublicacionDivisa }) {
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1 text-sm font-semibold text-fg">
           <span className="clamp-1">{oferta.autorNombre}</span>
-          {oferta.autorVerificado ? <SelloVerificado size={13} /> : null}
+          {oferta.autorSeguro ? (
+            <SelloSeguro size={14} />
+          ) : oferta.autorVerificado ? (
+            <SelloVerificado size={13} />
+          ) : null}
         </p>
         <p className="clamp-1 text-xs text-fg-subtle">
           <span className={vende ? "text-success" : "text-sell"}>

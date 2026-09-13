@@ -70,7 +70,22 @@ service cloud.firestore {
         && nuevo.autorApellido == perfil.apellido
         && nuevo.autorTelefono == perfil.telefono
         && nuevo.autorFoto == perfil.fotoUrl
-        && nuevo.autorVerificado == perfil.verificado;
+        && nuevo.autorVerificado == perfil.verificado
+        // El distintivo de Vendedor Seguro es el que decide quién encabeza el
+        // tablón de divisas, así que es justo el que más tienta a falsificar.
+        //
+        // Aquí no se exige igualdad sino que nadie se atribuya de más: ponerlo
+        // en falso siempre vale; ponerlo en cierto, solo si el perfil lo dice.
+        // Con igualdad estricta, un navegador con la versión anterior de la
+        // página en caché dejaría de poder publicar el día del despliegue, y
+        // eso castiga justo a quien sí está avalado. Entenderse de menos no
+        // hace daño a nadie; entenderse de más es la suplantación que se está
+        // evitando.
+        //
+        // Se lee con get(campo, por_defecto) porque ni los perfiles ni los
+        // anuncios anteriores a la distinción tienen todavía ese campo.
+        && (nuevo.get('autorSeguro', false) == false
+            || perfil.get('vendedorSeguro', false) == true);
     }
 
     /** Los datos copiados del autor siguen siendo los que ya estaban guardados. */
@@ -82,7 +97,8 @@ service cloud.firestore {
         && nuevo.autorApellido == viejo.autorApellido
         && nuevo.autorTelefono == viejo.autorTelefono
         && nuevo.autorFoto == viejo.autorFoto
-        && nuevo.autorVerificado == viejo.autorVerificado;
+        && nuevo.autorVerificado == viejo.autorVerificado
+        && nuevo.get('autorSeguro', false) == viejo.get('autorSeguro', false);
     }
 
     /** Marca de tiempo en milisegundos que de verdad corresponde a ahora. */
@@ -118,13 +134,15 @@ service cloud.firestore {
         && request.resource.data.fotoUrl is string
         && request.resource.data.fotoUrl.size() > 0;
 
-      // Nadie se asciende a sí mismo ni se autoverifica: eso lo hace un admin.
-      // Cada quien edita su ficha, pero nadie se asciende, se autoverifica
-      // ni se cambia el código. Pedir la verificación sí es cosa suya.
+      // Cada quien edita su ficha, pero nadie se asciende, se autoverifica,
+      // se nombra Vendedor Seguro ni se cambia el código. Pedir la
+      // verificación sí es cosa suya.
       allow update: if esAdmin()
         || (esMio(uid)
             && request.resource.data.rol == resource.data.rol
             && request.resource.data.verificado == resource.data.verificado
+            && request.resource.data.get('vendedorSeguro', false)
+                 == resource.data.get('vendedorSeguro', false)
             && request.resource.data.codigo == resource.data.codigo);
 
       allow delete: if esAdmin();

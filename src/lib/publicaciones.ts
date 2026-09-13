@@ -170,6 +170,7 @@ export type BorradorPublicacion = OmitirEnCadaTipo<
   | "autorTelefono"
   | "autorFoto"
   | "autorVerificado"
+  | "autorSeguro"
 >;
 
 /**
@@ -259,6 +260,7 @@ export async function crearPublicacion(
     autorTelefono: autor.telefono,
     autorFoto: autor.fotoUrl,
     autorVerificado: autor.verificado,
+    autorSeguro: autor.vendedorSeguro === true,
   });
   return referencia.id;
 }
@@ -330,6 +332,7 @@ export async function publicarOfertaDivisa(
     autorTelefono: autor.telefono,
     autorFoto: autor.fotoUrl,
     autorVerificado: autor.verificado,
+    autorSeguro: autor.vendedorSeguro === true,
   });
 
   return { id: previa.id, reemplazada: true };

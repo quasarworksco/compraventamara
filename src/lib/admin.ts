@@ -25,16 +25,21 @@ import {
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
+  getDocs,
+  limit as limitar,
   onSnapshot,
   orderBy,
   query,
   setDoc,
   updateDoc,
+  where,
+  writeBatch,
 } from "firebase/firestore";
 
 import { auth, db, firebaseListo } from "./firebase";
-import type { Miembro } from "./types";
+import type { Miembro, Publicacion } from "./types";
 
 /** Correo dueño de la plataforma. Se define en las variables de entorno. */
 export const CORREO_DUENO = (process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "").toLowerCase();
@@ -206,8 +211,105 @@ export function useMiembros(activo: boolean): { miembros: Miembro[]; cargando: b
  * falta; si se le quita el sello, tendrá que volver a pedirlo.
  */
 export async function cambiarVerificacion(uid: string, verificado: boolean): Promise<void> {
+  // Quitar la verificación arrastra la distinción de Vendedor Seguro: dejar a
+  // alguien "seguro" pero sin verificar sería el peor de los dos mundos, un
+  // distintivo de máxima confianza sobre una identidad que ya no se avala.
   await updateDoc(doc(db(), "miembros", uid), {
     verificado,
     solicitaVerificacion: false,
+    ...(verificado ? {} : { vendedorSeguro: false, seguroDesde: deleteField() }),
   });
+  await refrescarSellosDelAutor(uid, {
+    autorVerificado: verificado,
+    ...(verificado ? {} : { autorSeguro: false }),
+  });
+}
+
+/**
+ * Da o retira la distinción de Vendedor Seguro.
+ *
+ * Es un escalón por encima de la verificación: verificar dice que la persona
+ * es quien dice ser; Vendedor Seguro dice que la administración responde por
+ * ella. Por eso solo se concede a quien ya está verificado, y al retirar la
+ * verificación se cae también la distinción.
+ */
+export async function cambiarVendedorSeguro(uid: string, seguro: boolean): Promise<void> {
+  await updateDoc(doc(db(), "miembros", uid), {
+    vendedorSeguro: seguro,
+    seguroDesde: seguro ? Date.now() : deleteField(),
+  });
+  await refrescarSellosDelAutor(uid, { autorSeguro: seguro });
+}
+
+/**
+ * Pone al día los sellos que las publicaciones llevan copiados dentro.
+ *
+ * Cada anuncio guarda una copia del nombre, la foto y los sellos de su autor
+ * para pintar una lista sin una lectura por tarjeta. Esa copia no se entera
+ * sola de que la administración acaba de verificar a alguien: sin este paso,
+ * una oferta de divisas seguiría mostrándose sin sello —y sin subir en el
+ * tablón— hasta que su dueño la tocara.
+ *
+ * Es un efecto secundario que puede fallar sin que la decisión se pierda: lo
+ * que manda es el perfil, y esto solo adelanta lo que se ve. Por eso el error
+ * se registra en consola en vez de tumbar la operación entera.
+ */
+async function refrescarSellosDelAutor(
+  uid: string,
+  sellos: { autorVerificado?: boolean; autorSeguro?: boolean },
+): Promise<void> {
+  try {
+    const suyas = await getDocs(
+      query(collection(db(), "publicaciones"), where("autorUid", "==", uid), limitar(300)),
+    );
+    if (suyas.empty) return;
+
+    const lote = writeBatch(db());
+    suyas.docs.forEach((documento) => lote.update(documento.ref, sellos));
+    await lote.commit();
+  } catch (error) {
+    console.warn("No se pudieron refrescar los sellos de las publicaciones", error);
+  }
+}
+
+/* ----------------------------------------------------------------- */
+/* Publicaciones, para las estadísticas                               */
+/* ----------------------------------------------------------------- */
+
+/**
+ * Todas las publicaciones, sin filtrar por estado.
+ *
+ * `usePublicaciones` solo trae las activas, que es lo correcto para el pueblo
+ * pero inútil para medir: sin las pausadas, las cerradas y las vencidas no se
+ * puede decir cuánto de lo que se publica llega a algo.
+ *
+ * Se ordena por fecha de creación, que es un índice de un solo campo de los
+ * que Firestore mantiene solo; el resto de los cortes se hacen en memoria.
+ */
+export function useTodasLasPublicaciones(activo: boolean): {
+  publicaciones: Publicacion[];
+  cargando: boolean;
+} {
+  const [estado, setEstado] = useState<{ listo: boolean; publicaciones: Publicacion[] }>({
+    listo: false,
+    publicaciones: [],
+  });
+
+  useEffect(() => {
+    if (!firebaseListo || !activo) return;
+    return onSnapshot(
+      query(collection(db(), "publicaciones"), orderBy("creadaEn", "desc"), limitar(1000)),
+      (snapshot) =>
+        setEstado({
+          listo: true,
+          publicaciones: snapshot.docs.map((d) => ({
+            ...(d.data() as Publicacion),
+            id: d.id,
+          })),
+        }),
+      () => setEstado({ listo: true, publicaciones: [] }),
+    );
+  }, [activo]);
+
+  return { publicaciones: estado.publicaciones, cargando: activo && !estado.listo };
 }

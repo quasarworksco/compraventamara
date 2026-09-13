@@ -35,6 +35,7 @@ import {
   Boton,
   Esqueleto,
   EstadoVacio,
+  EtiquetaSeguro,
   Insignia,
   SelloVerificado,
 } from "@/components/ui";
@@ -66,7 +67,7 @@ import {
   type Tasas,
 } from "@/lib/types";
 
-type Orden = "recientes" | "tasa";
+type Orden = "recientes" | "tasa" | "seguros";
 
 const METODOS: MetodoPago[] = ["pago-movil", "efectivo", "zelle", "binance", "transferencia"];
 
@@ -95,6 +96,15 @@ export default function PaginaDolares() {
       .filter((o) => (metodo ? o.metodos.includes(metodo) : true));
 
     return propias.sort((a, b) => {
+      // Ordenar por Vendedor Seguro es una opción, no un empujón silencioso:
+      // quien pidió "mejor tasa" tiene que ver de verdad la mejor tasa arriba.
+      // Colar ahí a los avalados haría del selector una mentira.
+      if (orden === "seguros") {
+        return (
+          Number(b.autorSeguro ?? false) - Number(a.autorSeguro ?? false) ||
+          b.actualizadaEn - a.actualizadaEn
+        );
+      }
       if (orden === "recientes") return b.actualizadaEn - a.actualizadaEn;
       // Quien vende, más barato primero; quien compra, mejor pagador primero.
       return operacion === "venta" ? a.tasa - b.tasa : b.tasa - a.tasa;
@@ -170,6 +180,9 @@ export default function PaginaDolares() {
           </BotonOrden>
           <BotonOrden activo={orden === "tasa"} onClick={() => setOrden("tasa")}>
             Mejor tasa
+          </BotonOrden>
+          <BotonOrden activo={orden === "seguros"} onClick={() => setOrden("seguros")}>
+            Seguros
           </BotonOrden>
         </div>
 
@@ -405,7 +418,12 @@ function TarjetaDivisa({
             <h2 className="clamp-1 text-[15px] font-semibold text-fg">{persona}</h2>
             {oferta.autorVerificado ? <SelloVerificado /> : null}
           </div>
-          <p className="text-xs text-fg-subtle">{oferta.autorCodigo}</p>
+          {oferta.autorSeguro ? (
+            <p className="mt-1">
+              <EtiquetaSeguro />
+            </p>
+          ) : null}
+          <p className="mt-0.5 text-xs text-fg-subtle">{oferta.autorCodigo}</p>
           <a
             href={`tel:${oferta.autorTelefono}`}
             className="mt-0.5 inline-block text-sm font-medium tabular-nums text-brand-600 dark:text-brand-300"

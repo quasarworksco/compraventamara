@@ -3,7 +3,7 @@
 /** Piezas de interfaz reutilizables. Todo pensado para el pulgar, no para el ratón. */
 import { useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
-import { IconAlert, IconEye, IconEyeOff, IconSpinner, IconVerified } from "./icons";
+import { IconAlert, IconEscudo, IconEye, IconEyeOff, IconSpinner, IconVerified } from "./icons";
 
 /* ----------------------------------------------------------------- */
 /* Botón                                                              */
@@ -266,6 +266,33 @@ export function SelloVerificado({ size = 15 }: { size?: number }) {
     <span title="Miembro verificado" className="text-brand-500">
       <IconVerified size={size} />
       <span className="sr-only">Miembro verificado</span>
+    </span>
+  );
+}
+
+/**
+ * Distintivo de Vendedor Seguro.
+ *
+ * Va en verde —el de la bandera de Mara— y no en el azul del sello de
+ * verificado, porque son dos cosas distintas y tienen que verse distintas:
+ * verificado dice "es quien dice ser"; seguro dice "de esta persona
+ * respondemos". Si compartieran color, el segundo no añadiría nada.
+ */
+export function SelloSeguro({ size = 15 }: { size?: number }) {
+  return (
+    <span title="Vendedor Seguro" className="text-verde-500">
+      <IconEscudo size={size} />
+      <span className="sr-only">Vendedor Seguro</span>
+    </span>
+  );
+}
+
+/** El distintivo con su nombre escrito, para donde haya sitio. */
+export function EtiquetaSeguro() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-pill bg-verde-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-verde-600">
+      <IconEscudo size={12} />
+      Vendedor Seguro
     </span>
   );
 }

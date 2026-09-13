@@ -22,6 +22,7 @@ import {
   Boton,
   Esqueleto,
   EstadoVacio,
+  EtiquetaSeguro,
   Insignia,
   SelloVerificado,
 } from "@/components/ui";
@@ -171,7 +172,12 @@ export function DetallePublicacion({ id }: { id: string }) {
                   <p className="clamp-1 font-semibold text-fg">{persona}</p>
                   {publicacion.autorVerificado ? <SelloVerificado /> : null}
                 </div>
-                <p className="text-xs text-fg-subtle">{publicacion.autorCodigo}</p>
+                {publicacion.autorSeguro ? (
+                  <p className="mt-1">
+                    <EtiquetaSeguro />
+                  </p>
+                ) : null}
+                <p className="mt-0.5 text-xs text-fg-subtle">{publicacion.autorCodigo}</p>
                 <a
                   href={`tel:${publicacion.autorTelefono}`}
                   className="text-sm font-medium tabular-nums text-brand-600 dark:text-brand-300"
