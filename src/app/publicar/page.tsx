@@ -30,7 +30,7 @@ import {
   Selector,
 } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
-import { ETIQUETA_METODO } from "@/lib/formato";
+import { ETIQUETA_METODO, nombreDivisa } from "@/lib/formato";
 import {
   CATEGORIAS_MERCADO,
   CATEGORIAS_NEGOCIO,
@@ -39,16 +39,26 @@ import {
   ZONAS,
 } from "@/lib/pueblo";
 import {
+  actualizarPublicacion,
   crearPublicacion,
-  publicarOfertaDolar,
+  publicarOfertaDivisa,
+  usePublicacion,
   type BorradorPublicacion,
 } from "@/lib/publicaciones";
-import { HORAS_VIGENCIA_DOLAR, type MetodoPago, type Moneda, type TipoPublicacion } from "@/lib/types";
+import {
+  DIVISAS,
+  HORAS_VIGENCIA_DOLAR,
+  type Divisa,
+  type MetodoPago,
+  type Moneda,
+  type Publicacion,
+  type TipoPublicacion,
+} from "@/lib/types";
 
 const TIPOS = [
   { tipo: "producto", titulo: "Artículo", detalle: "Vehículo, celular, bien", Icono: IconTag },
   { tipo: "negocio", titulo: "Negocio", detalle: "Ficha del directorio", Icono: IconStore },
-  { tipo: "dolar", titulo: "Dólares", detalle: "Compro o vendo efectivo", Icono: IconDollar },
+  { tipo: "divisa", titulo: "Divisas", detalle: "Compro o vendo efectivo", Icono: IconDollar },
   { tipo: "rifa", titulo: "Rifa", detalle: "Números y sorteo", Icono: IconTicket },
   { tipo: "mototaxi", titulo: "Mototaxi", detalle: "Ofrezco carreras", Icono: IconMoto },
 ] as const satisfies readonly { tipo: TipoPublicacion; titulo: string; detalle: string; Icono: typeof IconTag }[];
@@ -63,53 +73,106 @@ export default function PaginaPublicar() {
   );
 }
 
+/**
+ * Decide si se está creando o corrigiendo.
+ *
+ * Cuando se corrige, el formulario no se monta hasta tener la publicación:
+ * así cada campo nace ya con su valor, en vez de aparecer vacío y llenarse
+ * después de un parpadeo.
+ */
 function Publicar() {
-  const { miembro, cargando, configurado } = useSesion();
   const parametros = useSearchParams();
+  const idEditar = parametros.get("editar") ?? "";
+  const { publicacion, cargando } = usePublicacion(idEditar);
+
+  if (idEditar && cargando) return <Esqueleto className="m-4 h-40" />;
+
+  return (
+    <Formulario
+      inicial={idEditar ? publicacion : null}
+      tipoPedido={(parametros.get("tipo") ?? "producto") as TipoPublicacion}
+    />
+  );
+}
+
+function Formulario({
+  inicial,
+  tipoPedido,
+}: {
+  /** La publicación que se corrige, o null si se está creando una nueva. */
+  inicial: Publicacion | null;
+  tipoPedido: TipoPublicacion;
+}) {
+  const { miembro, cargando, configurado } = useSesion();
   const router = useRouter();
 
-  const tipoInicial = (parametros.get("tipo") ?? "producto") as TipoPublicacion;
+  const editando = inicial !== null;
   const [tipo, setTipo] = useState<TipoPublicacion>(
-    TIPOS.some((t) => t.tipo === tipoInicial) ? tipoInicial : "producto",
+    inicial?.tipo ?? (TIPOS.some((t) => t.tipo === tipoPedido) ? tipoPedido : "producto"),
   );
 
+  /** Lee un campo de la publicación que se corrige, si es de ese tipo. */
+  function de<T extends Publicacion["tipo"], C extends keyof Extract<Publicacion, { tipo: T }>>(
+    deTipo: T,
+    campo: C,
+  ): Extract<Publicacion, { tipo: T }>[C] | undefined {
+    if (!inicial || inicial.tipo !== deTipo) return undefined;
+    return (inicial as Extract<Publicacion, { tipo: T }>)[campo];
+  }
+
+  /** Los números se editan como texto; vacío cuando no hay nada que corregir. */
+  const num = (valor: number | undefined) => (valor === undefined ? "" : String(valor));
+
   // Campos comunes.
-  const [titulo, setTitulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [zona, setZona] = useState(ZONAS[0]);
-  const [imagenes, setImagenes] = useState<string[]>([]);
+  const [titulo, setTitulo] = useState(inicial?.titulo ?? "");
+  const [descripcion, setDescripcion] = useState(inicial?.descripcion ?? "");
+  const [zona, setZona] = useState(inicial?.zona ?? ZONAS[0]);
+  const [imagenes, setImagenes] = useState<string[]>(inicial?.imagenes ?? []);
 
   // Artículo.
-  const [precio, setPrecio] = useState("");
-  const [moneda, setMoneda] = useState<Moneda>("USD");
-  const [categoria, setCategoria] = useState(CATEGORIAS_MERCADO[0]);
-  const [condicion, setCondicion] = useState<"nuevo" | "usado">("usado");
-  const [cantidad, setCantidad] = useState("1");
+  const [precio, setPrecio] = useState(num(de("producto", "precio")));
+  const [moneda, setMoneda] = useState<Moneda>(
+    de("producto", "moneda") ?? de("rifa", "moneda") ?? de("mototaxi", "moneda") ?? "USD",
+  );
+  const [categoria, setCategoria] = useState(
+    de("producto", "categoria") ?? CATEGORIAS_MERCADO[0],
+  );
+  const [condicion, setCondicion] = useState<"nuevo" | "usado">(
+    de("producto", "condicion") ?? "usado",
+  );
+  const [cantidad, setCantidad] = useState(num(de("producto", "cantidad")) || "1");
 
   // Negocio.
-  const [rubro, setRubro] = useState(CATEGORIAS_NEGOCIO[0]);
-  const [direccion, setDireccion] = useState("");
-  const [horario, setHorario] = useState("");
-  const [enlace, setEnlace] = useState("");
+  const [rubro, setRubro] = useState(de("negocio", "categoria") ?? CATEGORIAS_NEGOCIO[0]);
+  const [direccion, setDireccion] = useState(de("negocio", "direccion") ?? "");
+  const [horario, setHorario] = useState(de("negocio", "horario") ?? "");
+  const [enlace, setEnlace] = useState(de("negocio", "enlace") ?? "");
 
-  // Dólares.
-  const [operacion, setOperacion] = useState<"compra" | "venta">("venta");
-  const [tasa, setTasa] = useState("");
-  const [montoMin, setMontoMin] = useState("");
-  const [montoMax, setMontoMax] = useState("");
-  const [metodos, setMetodos] = useState<MetodoPago[]>(["efectivo"]);
+  // Divisas.
+  const [operacion, setOperacion] = useState<"compra" | "venta">(
+    de("divisa", "operacion") ?? "venta",
+  );
+  const [divisa, setDivisa] = useState<Divisa>(de("divisa", "divisa") ?? "USD");
+  const [tasa, setTasa] = useState(num(de("divisa", "tasa")));
+  const [montoMin, setMontoMin] = useState(num(de("divisa", "montoMin")));
+  const [montoMax, setMontoMax] = useState(num(de("divisa", "montoMax")));
+  const [metodos, setMetodos] = useState<MetodoPago[]>(
+    de("divisa", "metodos") ?? ["efectivo"],
+  );
 
   // Rifa.
-  const [premio, setPremio] = useState("");
-  const [precioNumero, setPrecioNumero] = useState("");
-  const [loteria, setLoteria] = useState(LOTERIAS[0]);
-  const [fechaSorteo, setFechaSorteo] = useState("");
-  const [sorteo, setSorteo] = useState("");
-  const [totalNumeros, setTotalNumeros] = useState("100");
+  const [premio, setPremio] = useState(de("rifa", "premio") ?? "");
+  const [precioNumero, setPrecioNumero] = useState(num(de("rifa", "precioNumero")));
+  const [loteria, setLoteria] = useState(de("rifa", "loteria") ?? LOTERIAS[0]);
+  const [fechaSorteo, setFechaSorteo] = useState(de("rifa", "fechaSorteo") ?? "");
+  const [sorteo, setSorteo] = useState(de("rifa", "sorteo") ?? "");
+  const [totalNumeros, setTotalNumeros] = useState(
+    num(de("rifa", "totalNumeros")) || "100",
+  );
 
   // Mototaxi.
-  const [tarifaDesde, setTarifaDesde] = useState("");
-  const [cobertura, setCobertura] = useState<string[]>([]);
+  const [tarifaDesde, setTarifaDesde] = useState(num(de("mototaxi", "tarifaDesde")));
+  const [cobertura, setCobertura] = useState<string[]>(de("mototaxi", "cobertura") ?? []);
 
   const [fallo, setFallo] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -165,12 +228,13 @@ function Publicar() {
           enlace: enlace.trim() || undefined,
           permanente: true,
         };
-      case "dolar":
+      case "divisa":
         return {
           ...comun,
-          tipo: "dolar",
-          titulo: operacion === "venta" ? "Vendo dólares en efectivo" : "Compro dólares en efectivo",
+          tipo: "divisa",
+          titulo: `${operacion === "venta" ? "Vendo" : "Compro"} ${nombreDivisa(divisa)} en efectivo`,
           operacion,
+          divisa,
           tasa: Number(tasa),
           montoMin: Number(montoMin) || 0,
           montoMax: Number(montoMax) || 0,
@@ -210,8 +274,8 @@ function Publicar() {
   const puedePublicarDivisas = miembro?.verificado === true;
 
   function validar(): string | null {
-    if (tipo === "dolar" && !puedePublicarDivisas) {
-      return "Para publicar en dólares tu cuenta debe estar verificada.";
+    if (tipo === "divisa" && !puedePublicarDivisas) {
+      return "Para publicar divisas tu cuenta debe estar verificada.";
     }
     if (tipo === "producto") {
       if (titulo.trim().length < 3) return "Ponle un título al artículo.";
@@ -221,7 +285,7 @@ function Publicar() {
       if (titulo.trim().length < 3) return "Escribe el nombre del negocio.";
       if (!direccion.trim()) return "Indica dónde queda el negocio.";
     }
-    if (tipo === "dolar") {
+    if (tipo === "divisa") {
       if (!Number(tasa)) return "Indica a qué tasa operas.";
       if (metodos.length === 0) return "Elige al menos un método de pago.";
     }
@@ -250,10 +314,18 @@ function Publicar() {
     try {
       const borrador = construirBorrador();
 
+      // Corregir algo ya publicado no lo mueve de sitio ni le cambia la fecha:
+      // se actualiza y se vuelve a su ficha.
+      if (editando) {
+        await actualizarPublicacion(inicial.id, borrador);
+        router.replace(`/publicacion/?id=${inicial.id}`);
+        return;
+      }
+
       // Las divisas van por su propia vía: cada quien tiene una sola oferta
       // viva, así que si ya tenía una se reescribe en lugar de duplicarse.
-      if (borrador.tipo === "dolar") {
-        await publicarOfertaDolar(borrador, miembro!);
+      if (borrador.tipo === "divisa") {
+        await publicarOfertaDivisa(borrador, miembro!);
         router.replace("/dolares");
         return;
       }
@@ -280,7 +352,11 @@ function Publicar() {
 
   return (
     <>
-      <BarraSuperior titulo="Publicar" subtitulo={miembro.codigo} volverA="/" />
+      <BarraSuperior
+        titulo={editando ? "Editar publicación" : "Publicar"}
+        subtitulo={miembro.codigo}
+        volverA={editando ? `/publicacion/?id=${inicial.id}` : "/"}
+      />
 
       <main className="px-4 py-4">
         {!configurado ? (
@@ -288,11 +364,13 @@ function Publicar() {
         ) : null}
 
         {/* Qué se va a publicar */}
-        <fieldset className="mb-5">
-          <legend className="mb-2 text-sm font-medium text-fg-muted">¿Qué vas a publicar?</legend>
+        <fieldset className="mb-5" disabled={editando}>
+          <legend className="mb-2 text-sm font-medium text-fg-muted">
+            {editando ? "Qué publicaste" : "¿Qué vas a publicar?"}
+          </legend>
           <div className="grid grid-cols-3 gap-2">
             {TIPOS.map(({ tipo: valor, titulo: nombre, detalle, Icono }) => {
-              const bloqueado = valor === "dolar" && !puedePublicarDivisas;
+              const bloqueado = valor === "divisa" && !puedePublicarDivisas;
               return (
                 <button
                   key={valor}
@@ -415,22 +493,33 @@ function Publicar() {
             </>
           ) : null}
 
-          {tipo === "dolar" && !puedePublicarDivisas ? (
+          {tipo === "divisa" && !puedePublicarDivisas ? (
             <SinVerificar />
           ) : null}
 
-          {tipo === "dolar" ? (
+          {tipo === "divisa" ? (
             <>
+              <Selector
+                etiqueta="¿Qué moneda?"
+                value={divisa}
+                onChange={(e) => setDivisa(e.target.value as Divisa)}
+              >
+                {DIVISAS.map((d) => (
+                  <option key={d.codigo} value={d.codigo}>
+                    {d.nombre}
+                  </option>
+                ))}
+              </Selector>
               <Selector
                 etiqueta="Operación"
                 value={operacion}
                 onChange={(e) => setOperacion(e.target.value as "compra" | "venta")}
               >
-                <option value="venta">Vendo dólares en efectivo</option>
-                <option value="compra">Compro dólares en efectivo</option>
+                <option value="venta">Vendo {nombreDivisa(divisa)} en efectivo</option>
+                <option value="compra">Compro {nombreDivisa(divisa)} en efectivo</option>
               </Selector>
               <Campo
-                etiqueta="Tasa (bolívares por dólar)"
+                etiqueta={`Tasa (bolívares por ${divisa === "COP" ? "peso" : divisa === "EUR" ? "euro" : "dólar"})`}
                 type="number"
                 inputMode="decimal"
                 min="0"
@@ -440,7 +529,7 @@ function Publicar() {
               />
               <div className="grid grid-cols-2 gap-3">
                 <Campo
-                  etiqueta="Desde ($)"
+                  etiqueta="Desde"
                   type="number"
                   inputMode="decimal"
                   min="0"
@@ -448,7 +537,7 @@ function Publicar() {
                   onChange={(e) => setMontoMin(e.target.value)}
                 />
                 <Campo
-                  etiqueta="Hasta ($)"
+                  etiqueta="Hasta"
                   type="number"
                   inputMode="decimal"
                   min="0"
@@ -597,9 +686,9 @@ function Publicar() {
           ) : null}
 
           <AreaTexto
-            etiqueta={tipo === "dolar" ? "Detalles (opcional)" : "Descripción"}
+            etiqueta={tipo === "divisa" ? "Detalles (opcional)" : "Descripción"}
             placeholder={
-              tipo === "dolar"
+              tipo === "divisa"
                 ? "Entrego en el centro, de 9 a 5."
                 : "Cuenta el estado, los detalles y cómo entregas."
             }
@@ -613,23 +702,25 @@ function Publicar() {
             ))}
           </Selector>
 
-          {tipo !== "dolar" ? (
+          {tipo !== "divisa" ? (
             <SelectorImagenes valores={imagenes} onCambio={setImagenes} onError={setFallo} />
           ) : null}
 
           {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
 
           <div className="flex items-center gap-2">
-            <Insignia tono="marca">Publicas como {miembro.codigo}</Insignia>
+            <Insignia tono="marca">
+              {editando ? `Corriges tu publicación · ${miembro.codigo}` : `Publicas como ${miembro.codigo}`}
+            </Insignia>
           </div>
 
           <Boton
             type="submit"
             ancho
             cargando={enviando}
-            disabled={!configurado || (tipo === "dolar" && !puedePublicarDivisas)}
+            disabled={!configurado || (tipo === "divisa" && !puedePublicarDivisas)}
           >
-            Publicar
+            {editando ? "Guardar los cambios" : "Publicar"}
           </Boton>
         </form>
       </main>
@@ -666,7 +757,7 @@ function SinVerificar() {
         <div>
           <p className="font-semibold text-fg">El tablón de divisas pide verificación</p>
           <p className="mt-1 text-sm leading-relaxed text-fg-muted">
-            Publicar dólares significa citar a un vecino para entregar efectivo en mano, así
+            Publicar divisas significa citar a un vecino para entregar efectivo en mano, así
             que la administración revisa antes a quién deja publicar. Mientras tanto puedes
             ver todas las ofertas y escribir por WhatsApp a quien quieras.
           </p>

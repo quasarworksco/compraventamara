@@ -46,7 +46,7 @@ export function TasasDelDia() {
         href="/dolares"
         className="mt-2.5 flex min-h-12 items-center justify-between tarjeta px-4 text-sm font-medium text-fg active:bg-surface-2"
       >
-        Ver quién compra y vende efectivo
+        Ver quién compra y vende divisas
         <IconChevronRight size={18} className="text-fg-subtle" />
       </Link>
     </section>

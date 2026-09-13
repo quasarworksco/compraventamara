@@ -13,7 +13,7 @@ import { IconChat, IconDollar, IconHome, IconPlus, IconTag } from "./icons";
 const DESTINOS = [
   { href: "/", etiqueta: "Inicio", Icono: IconHome },
   { href: "/mercado", etiqueta: "Mercado", Icono: IconTag },
-  { href: "/dolares", etiqueta: "Dólares", Icono: IconDollar },
+  { href: "/dolares", etiqueta: "Divisas", Icono: IconDollar },
   { href: "/chat", etiqueta: "Chat", Icono: IconChat },
 ] as const;
 

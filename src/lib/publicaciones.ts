@@ -31,7 +31,7 @@ import {
   MS_POR_HORA,
   type Miembro,
   type Publicacion,
-  type PublicacionDolar,
+  type PublicacionDivisa,
   type TipoPublicacion,
 } from "./types";
 
@@ -182,7 +182,7 @@ function calcularVencimiento(
 ): number {
   const ahora = Date.now();
   switch (tipo) {
-    case "dolar":
+    case "divisa":
       return ahora + HORAS_VIGENCIA_DOLAR * MS_POR_HORA;
     case "rifa": {
       if (!datos.fechaSorteo) return ahora + DIAS_VIGENCIA * MS_POR_DIA;
@@ -279,14 +279,14 @@ export async function confirmarDisponibilidad(id: string): Promise<void> {
  * y el resto se descarta aquí. Nadie tiene tantas publicaciones como para que
  * la diferencia se note.
  */
-async function ofertaDolarActiva(uid: string): Promise<PublicacionDolar | null> {
+async function ofertaDivisaActiva(uid: string): Promise<PublicacionDivisa | null> {
   const resultado = await getDocs(
     query(collection(db(), COLECCION), where("autorUid", "==", uid), limitar(100)),
   );
 
   const vigente = resultado.docs
     .map((d) => ({ ...(d.data() as Publicacion), id: d.id }))
-    .filter((p): p is PublicacionDolar => p.tipo === "dolar")
+    .filter((p): p is PublicacionDivisa => p.tipo === "divisa")
     .filter((o) => o.estado === "activa" && o.venceEn > Date.now())
     .sort((a, b) => b.creadaEn - a.creadaEn)[0];
 
@@ -300,11 +300,11 @@ async function ofertaDolarActiva(uid: string): Promise<PublicacionDolar | null> 
  * lugar de crear otra. Sin esta regla, un solo cambista podría tapar el
  * tablón con diez tasas distintas y dejar fuera al resto del pueblo.
  */
-export async function publicarOfertaDolar(
-  borrador: BorradorPublicacion & { tipo: "dolar" },
+export async function publicarOfertaDivisa(
+  borrador: BorradorPublicacion & { tipo: "divisa" },
   autor: Miembro,
 ): Promise<{ id: string; reemplazada: boolean }> {
-  const previa = await ofertaDolarActiva(autor.uid);
+  const previa = await ofertaDivisaActiva(autor.uid);
   if (!previa) {
     return { id: await crearPublicacion(borrador, autor), reemplazada: false };
   }
@@ -324,6 +324,24 @@ export async function publicarOfertaDolar(
   });
 
   return { id: previa.id, reemplazada: true };
+}
+
+/**
+ * Corrige una publicación ya creada.
+ *
+ * Solo viajan los campos que su dueño puede cambiar. Quedan fuera a
+ * propósito el autor, el tipo y la fecha de creación: las reglas de Firestore
+ * exigen que no se muevan, porque son las que impiden que un anuncio cambie
+ * de dueño, se convierta en oferta de divisas o se cuele al primer puesto de
+ * los listados.
+ */
+export async function actualizarPublicacion(
+  id: string,
+  borrador: BorradorPublicacion,
+): Promise<void> {
+  const campos: Record<string, unknown> = { ...borrador, actualizadaEn: Date.now() };
+  delete campos.tipo;
+  await updateDoc(doc(db(), COLECCION, id), campos);
 }
 
 export async function cambiarEstadoPublicacion(

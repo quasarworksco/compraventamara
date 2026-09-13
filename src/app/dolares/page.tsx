@@ -43,23 +43,26 @@ import {
   ETIQUETA_METODO,
   diferenciaPorcentual,
   formatearDiferencia,
-  formatearPrecio,
+  formatearDivisa,
   formatearTasa,
   formatearTelefono,
   hace,
   iniciales,
   nombreCompleto,
+  nombreDivisa,
 } from "@/lib/formato";
 import { ZONAS } from "@/lib/pueblo";
 import { confirmarDisponibilidad, usePublicaciones } from "@/lib/publicaciones";
 import { useAhora } from "@/lib/reloj";
 import { useTasas } from "@/lib/tasas";
 import {
+  DIVISAS,
   HORAS_VIGENCIA_DOLAR,
   MS_POR_HORA,
+  type Divisa,
   type MetodoPago,
   type OperacionDivisa,
-  type PublicacionDolar,
+  type PublicacionDivisa,
   type Tasas,
 } from "@/lib/types";
 
@@ -69,19 +72,23 @@ const METODOS: MetodoPago[] = ["pago-movil", "efectivo", "zelle", "binance", "tr
 
 export default function PaginaDolares() {
   const [operacion, setOperacion] = useState<OperacionDivisa>("venta");
+  const [divisa, setDivisa] = useState<Divisa>("USD");
   const [orden, setOrden] = useState<Orden>("recientes");
   const [zona, setZona] = useState<string | null>(null);
   const [metodo, setMetodo] = useState<MetodoPago | null>(null);
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
 
-  const { publicaciones, cargando } = usePublicaciones({ tipo: "dolar", tope: 100 });
+  const { publicaciones, cargando } = usePublicaciones({ tipo: "divisa", tope: 100 });
   const { tasas } = useTasas();
   const { miembro } = useSesion();
   const ahora = useAhora();
 
   const ofertas = useMemo(() => {
     const propias = publicaciones
-      .filter((p): p is PublicacionDolar => p.tipo === "dolar" && p.operacion === operacion)
+      .filter(
+        (p): p is PublicacionDivisa =>
+          p.tipo === "divisa" && p.operacion === operacion && (p.divisa ?? "USD") === divisa,
+      )
       // El TTL de Firestore tarda en pasar: aquí se descarta lo ya vencido.
       .filter((o) => o.venceEn > ahora)
       .filter((o) => (zona ? o.zona === zona : true))
@@ -92,20 +99,46 @@ export default function PaginaDolares() {
       // Quien vende, más barato primero; quien compra, mejor pagador primero.
       return operacion === "venta" ? a.tasa - b.tasa : b.tasa - a.tasa;
     });
-  }, [publicaciones, operacion, orden, zona, metodo, ahora]);
+  }, [publicaciones, operacion, divisa, orden, zona, metodo, ahora]);
 
   const filtrosActivos = (zona ? 1 : 0) + (metodo ? 1 : 0);
 
   return (
     <>
-      <CabeceraSeccion titulo="Dólares" detalle="Efectivo en mano, entre vecinos" />
+      <CabeceraSeccion titulo="Divisas" detalle="Efectivo en mano, entre vecinos" />
+
+      {/* Qué moneda se busca. Es lo primero que decide quien llega. */}
+      <div
+        role="tablist"
+        aria-label="Moneda"
+        className="scroll-x mx-4 mt-3 flex gap-2"
+      >
+        {DIVISAS.map((d) => (
+          <button
+            key={d.codigo}
+            type="button"
+            role="tab"
+            aria-selected={divisa === d.codigo}
+            onClick={() => setDivisa(d.codigo)}
+            className={`pulsable min-h-10 shrink-0 rounded-pill border px-4 text-sm font-semibold ${
+              divisa === d.codigo
+                ? "border-brand-600 bg-linear-to-b from-brand-500 to-brand-700 text-white shadow-sm shadow-brand-700/25"
+                : "border-line bg-surface text-fg-muted"
+            }`}
+          >
+            {d.nombre}
+          </button>
+        ))}
+      </div>
 
       {/* Referencia del día, para saber si una oferta está en precio. */}
-      <div className="tarjeta mx-4 mt-3 flex gap-2 p-3 text-sm">
-        <Referencia nombre="BCV" valor={tasas.bcv} />
-        <span className="w-px bg-line" aria-hidden="true" />
-        <Referencia nombre="Binance" valor={tasas.binance} />
-      </div>
+      {divisa === "USD" ? (
+        <div className="tarjeta mx-4 mt-3 flex gap-2 p-3 text-sm">
+          <Referencia nombre="BCV" valor={tasas.bcv} />
+          <span className="w-px bg-line" aria-hidden="true" />
+          <Referencia nombre="Binance" valor={tasas.binance} />
+        </div>
+      ) : null}
 
       {/* Conmutador compra / venta */}
       <div
@@ -118,14 +151,14 @@ export default function PaginaDolares() {
           onClick={() => setOperacion("venta")}
           icono={<IconArrowUp size={16} />}
         >
-          Venden efectivo
+          Venden
         </Pestana>
         <Pestana
           activa={operacion === "compra"}
           onClick={() => setOperacion("compra")}
           icono={<IconArrowDown size={16} />}
         >
-          Compran efectivo
+          Compran
         </Pestana>
       </div>
 
@@ -339,7 +372,7 @@ function TarjetaDivisa({
   ahora,
   esMia,
 }: {
-  oferta: PublicacionDolar;
+  oferta: PublicacionDivisa;
   tasas: Tasas;
   ahora: number;
   esMia: boolean;
@@ -383,21 +416,27 @@ function TarjetaDivisa({
 
         <div className="shrink-0 text-right">
           <p className="text-xl font-bold tabular-nums text-fg">{formatearTasa(oferta.tasa)}</p>
-          <p className="text-xs text-fg-muted">por dólar</p>
+          <p className="text-xs text-fg-muted">
+            por {nombreDivisa(oferta.divisa ?? "USD").replace(/e?s$/, "")}
+          </p>
         </div>
       </div>
 
-      {/* Cuánto se aparta de las referencias del día. */}
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        <Desviacion etiqueta="BCV" tasa={oferta.tasa} referencia={tasas.bcv} />
-        <Desviacion etiqueta="Binance" tasa={oferta.tasa} referencia={tasas.binance} />
-      </div>
+      {/* Cuánto se aparta de las referencias del día. Solo hay referencia
+          pública para el dólar, así que en las demás monedas no se muestra. */}
+      {(oferta.divisa ?? "USD") === "USD" ? (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <Desviacion etiqueta="BCV" tasa={oferta.tasa} referencia={tasas.bcv} />
+          <Desviacion etiqueta="Binance" tasa={oferta.tasa} referencia={tasas.binance} />
+        </div>
+      ) : null}
 
       <dl className="mt-2.5 grid grid-cols-2 gap-2 rounded-xl bg-surface-2 p-3 text-sm">
         <div>
           <dt className="text-xs text-fg-subtle">Monto disponible</dt>
           <dd className="font-semibold tabular-nums text-fg">
-            {formatearPrecio(oferta.montoMin, "USD")} – {formatearPrecio(oferta.montoMax, "USD")}
+            {formatearDivisa(oferta.montoMin, oferta.divisa ?? "USD")} –{" "}
+            {formatearDivisa(oferta.montoMax, oferta.divisa ?? "USD")}
           </dd>
         </div>
         <div>
@@ -440,9 +479,9 @@ function TarjetaDivisa({
         ) : (
           <BotonWhatsApp
             telefono={oferta.autorTelefono}
-            mensaje={`Hola ${oferta.autorNombre}, te escribo por Mara Comercio. Vi que ${verbo} dólares a ${formatearTasa(
-              oferta.tasa,
-            )}. ¿Sigue disponible?`}
+            mensaje={`Hola ${oferta.autorNombre}, te escribo por Mara Comercio. Vi que ${verbo} ${nombreDivisa(
+              oferta.divisa ?? "USD",
+            )} a ${formatearTasa(oferta.tasa)}. ¿Sigue disponible?`}
           />
         )}
       </div>

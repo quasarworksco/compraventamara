@@ -179,7 +179,7 @@ function SeccionMiembros() {
           {pendientes === 1
             ? "Hay 1 persona esperando verificación."
             : `Hay ${pendientes} personas esperando verificación.`}{" "}
-          Sin el sello no pueden publicar en el tablón de dólares.
+          Sin el sello no pueden publicar en el tablón de divisas.
         </Aviso>
       ) : null}
 

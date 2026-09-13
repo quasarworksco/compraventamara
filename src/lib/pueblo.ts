@@ -27,9 +27,16 @@ export const PUEBLO = {
   municipio: "Municipio Mara",
   estado: "Zulia",
   gentilicio: "marense",
-  /** Texto de bienvenida de la portada. */
+  /**
+   * Lo primero que lee quien llega.
+   *
+   * Se saluda antes de explicar nada: quien abre la página por un enlace que
+   * le pasaron no sabe todavía dónde cayó. Y se habla bien del pueblo, que es
+   * de lo que va esto.
+   */
+  saludo: "Bienvenido a Mara",
   bienvenida:
-    "Capital del municipio Mara, a orillas del Golfo de Venezuela. Un pueblo de gente trabajadora, comercio de puerta a puerta y patrullaje permanente.",
+    "Esta es la plataforma de comercio del municipio, y esta es su capital: un pueblo de gente trabajadora, comercio de puerta a puerta y patrullaje permanente.",
 } as const;
 
 /**
@@ -114,6 +121,7 @@ export const CATEGORIAS_MERCADO: string[] = [
   "Electrodomésticos",
   "Muebles y hogar",
   "Ropa y calzado",
+  "Perfumería y cosméticos",
   "Repuestos",
   "Herramientas",
   "Agro y animales",
@@ -195,7 +203,15 @@ export const RUBROS_NEGOCIO: GrupoRubros[] = [
   },
   {
     grupo: "Belleza y cuidado",
-    rubros: ["Barbería", "Peluquería", "Manicure y pedicure", "Spa y estética", "Gimnasio"],
+    rubros: [
+      "Barbería",
+      "Peluquería",
+      "Manicure y pedicure",
+      "Perfumería",
+      "Cosméticos y maquillaje",
+      "Spa y estética",
+      "Gimnasio",
+    ],
   },
   {
     grupo: "Tecnología",
@@ -239,19 +255,15 @@ export const RUBROS_NEGOCIO: GrupoRubros[] = [
 /** Lista plana de todos los rubros, para validar y para los selectores. */
 export const CATEGORIAS_NEGOCIO: string[] = RUBROS_NEGOCIO.flatMap((g) => g.rubros);
 
-/** Loterías con las que juegan las rifas del pueblo. */
+/**
+ * Con qué juega una rifa del pueblo.
+ *
+ * Solo dos loterías, que son las que se juegan aquí, y la rifa propia: la que
+ * organiza cualquiera con cien números o menos y se sortea por su cuenta, sin
+ * depender de ningún sorteo oficial.
+ */
 export const LOTERIAS: string[] = [
-  "Triple Zulia",
+  "Triple Lago",
   "Triple Táchira",
-  "Triple Caracas",
-  "Triple Caliente",
-  "Triple Gordo",
-  "Chance",
-  "Lotto Rey",
-  "La Granjita",
-  "Selva Plus",
-  "Trío Activo",
-  "Guácharo Activo",
-  "Ricachona",
-  "Otra lotería",
+  "Rifa propia (100 números o menos)",
 ];

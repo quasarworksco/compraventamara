@@ -90,21 +90,21 @@ probar("Beto NO puede firmar como Ana", () =>
 
 probar("Ana, verificada, publica una oferta de dólares", () =>
   assertSucceeds(addDoc(collection(ana, "publicaciones"), anuncioDe(perfilAna, {
-    tipo: "dolar", titulo: "Vendo dólares", operacion: "venta", tasa: 40,
+    tipo: "divisa", titulo: "Vendo dólares", operacion: "venta", tasa: 40,
     montoMin: 10, montoMax: 500, metodos: ["efectivo"],
     venceEn: Date.now() + 6 * 3600000,
   }))));
 
 probar("Beto, sin verificar, NO puede publicar dólares", () =>
   assertFails(addDoc(collection(beto, "publicaciones"), anuncioDe(perfilBeto, {
-    tipo: "dolar", titulo: "Vendo dólares", operacion: "venta", tasa: 40,
+    tipo: "divisa", titulo: "Vendo dólares", operacion: "venta", tasa: 40,
     montoMin: 10, montoMax: 500, metodos: ["efectivo"],
     venceEn: Date.now() + 6 * 3600000,
   }))));
 
 probar("Nadie fija una oferta de dólares a diez años", () =>
   assertFails(addDoc(collection(ana, "publicaciones"), anuncioDe(perfilAna, {
-    tipo: "dolar", titulo: "Vendo dólares", operacion: "venta", tasa: 40,
+    tipo: "divisa", titulo: "Vendo dólares", operacion: "venta", tasa: 40,
     montoMin: 10, montoMax: 500, metodos: ["efectivo"],
     venceEn: Date.now() + 3650 * 86400000,
   }))));

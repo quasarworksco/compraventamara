@@ -65,7 +65,7 @@ const SECCIONES = [
   },
   {
     href: "/dolares",
-    titulo: "Dólares",
+    titulo: "Divisas",
     detalle: "Efectivo en venta",
     Icono: IconDollar,
     acento: "from-verde-500 to-brand-700",
@@ -134,14 +134,17 @@ export default function Portada() {
           )}
         </div>
 
-        <h1 className="sobre-foto asoma relative z-10 mt-6 text-[28px] font-bold leading-tight tracking-tight">
+        <p className="sobre-foto asoma relative z-10 mt-6 text-sm font-semibold uppercase tracking-[0.14em] text-verde-200">
+          {PUEBLO.saludo}
+        </p>
+        <h1 className="sobre-foto asoma retardo-1 relative z-10 mt-1.5 text-[28px] font-bold leading-tight tracking-tight">
           {PUEBLO.nombre}
         </h1>
-        <p className="sobre-foto asoma retardo-1 relative z-10 mt-2 max-w-md text-sm leading-relaxed text-white/90">
+        <p className="sobre-foto asoma retardo-2 relative z-10 mt-2 max-w-md text-sm leading-relaxed text-white/90">
           {PUEBLO.bienvenida}
         </p>
 
-        <form onSubmit={buscar} role="search" className="asoma retardo-2 relative z-10 mt-5">
+        <form onSubmit={buscar} role="search" className="asoma retardo-3 relative z-10 mt-5">
           <div className="cristal-sobre-azul flex items-center gap-2 rounded-2xl bg-brand-900/35 px-3.5 py-1">
             <IconSearch size={19} className="shrink-0 text-white/70" />
             <input
@@ -161,7 +164,7 @@ export default function Portada() {
           href={GRUPO_WHATSAPP}
           target="_blank"
           rel="noopener noreferrer"
-          className="pulsable asoma retardo-3 relative z-10 mt-3 flex min-h-12 items-center gap-2.5 rounded-2xl bg-linear-to-b from-wa-400 to-wa-500 px-3.5 text-sm font-semibold text-[#06302a] shadow-lg shadow-black/25 ring-1 ring-white/30"
+          className="pulsable asoma retardo-4 relative z-10 mt-3 flex min-h-12 items-center gap-2.5 rounded-2xl bg-linear-to-b from-wa-400 to-wa-500 px-3.5 text-sm font-semibold text-[#06302a] shadow-lg shadow-black/25 ring-1 ring-white/30"
         >
           <IconWhatsApp size={19} className="shrink-0" />
           <span className="flex-1 text-left">Únete al grupo de WhatsApp del pueblo</span>

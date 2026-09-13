@@ -1,6 +1,22 @@
 /** Utilidades de presentación compartidas por toda la aplicación. */
 
-import type { Moneda, MetodoPago, TipoPublicacion } from "./types";
+import { DIVISAS, type Divisa, type Moneda, type MetodoPago, type TipoPublicacion } from "./types";
+
+/** "dólares", "pesos colombianos", "euros". */
+export function nombreDivisa(divisa: Divisa): string {
+  return (DIVISAS.find((d) => d.codigo === divisa)?.nombre ?? divisa).toLowerCase();
+}
+
+/** El símbolo de cada divisa, para escribir los montos como se leen. */
+export function formatearDivisa(monto: number, divisa: Divisa): string {
+  const simbolo = DIVISAS.find((d) => d.codigo === divisa)?.simbolo ?? divisa;
+  const decimales = Number.isInteger(monto) ? 0 : 2;
+  const numero = new Intl.NumberFormat("es-VE", {
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
+  }).format(monto);
+  return `${simbolo}${numero}`;
+}
 
 /** Precio con el símbolo correcto y sin decimales inútiles. */
 export function formatearPrecio(monto: number, moneda: Moneda): string {
@@ -92,7 +108,7 @@ export const ETIQUETA_TIPO: Record<TipoPublicacion, string> = {
   producto: "Artículo",
   negocio: "Negocio",
   mototaxi: "Mototaxi",
-  dolar: "Divisas",
+  divisa: "Divisas",
   rifa: "Rifa",
 };
 

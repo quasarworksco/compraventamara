@@ -150,8 +150,8 @@ service cloud.firestore {
       let vence = request.resource.data.venceEn;
       return vence is int
         && (tipo == 'negocio'
-            || (tipo == 'dolar' && vence <= request.time.toMillis() + 25200000)
-            || (tipo != 'dolar' && vence <= request.time.toMillis() + 2764800000));
+            || (tipo == 'divisa' && vence <= request.time.toMillis() + 25200000)
+            || (tipo != 'divisa' && vence <= request.time.toMillis() + 2764800000));
     }
 
     // Publicaciones: mercado, negocios, mototaxis, dólares y rifas.
@@ -164,8 +164,8 @@ service cloud.firestore {
         && request.resource.data.titulo is string
         && request.resource.data.titulo.size() > 0
         && request.resource.data.titulo.size() <= 200
-        && request.resource.data.tipo in ['producto', 'negocio', 'mototaxi', 'dolar', 'rifa']
-        && (request.resource.data.tipo != 'dolar' || miembroVerificado())
+        && request.resource.data.tipo in ['producto', 'negocio', 'mototaxi', 'divisa', 'rifa']
+        && (request.resource.data.tipo != 'divisa' || miembroVerificado())
         // Sin esto, una fecha de creación en el futuro dejaría el anuncio
         // clavado en el primer puesto de todos los listados para siempre.
         && marcaReciente(request.resource.data.creadaEn)
@@ -184,7 +184,7 @@ service cloud.firestore {
             && request.resource.data.tipo == resource.data.tipo
             && request.resource.data.creadaEn == resource.data.creadaEn
             && (autorSinCambios() || autorCoincideConSuPerfil())
-            && (resource.data.tipo != 'dolar' || miembroVerificado())
+            && (resource.data.tipo != 'divisa' || miembroVerificado())
             && vigenciaRazonable());
 
       allow delete: if esAdmin() || esMio(resource.data.autorUid);

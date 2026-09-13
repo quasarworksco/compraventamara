@@ -14,7 +14,7 @@
  */
 
 /** Los cuatro módulos del grupo. */
-export type TipoPublicacion = "producto" | "negocio" | "mototaxi" | "dolar" | "rifa";
+export type TipoPublicacion = "producto" | "negocio" | "mototaxi" | "divisa" | "rifa";
 
 /** Días que vive una publicación del marketplace antes de vencer. */
 export const DIAS_VIGENCIA = 30;
@@ -36,6 +36,21 @@ export const MS_POR_HORA = 3_600_000;
 export const HORAS_VIGENCIA_DOLAR = 6;
 
 export type Moneda = "USD" | "VES";
+
+/**
+ * Las divisas que se cambian en el pueblo.
+ *
+ * No solo dólares: por la frontera entra mucho peso colombiano, y quien
+ * recibe remesas de Europa trae euros. Cada oferta dice cuál vende y a qué
+ * tasa, porque no es lo mismo.
+ */
+export type Divisa = "USD" | "COP" | "EUR";
+
+export const DIVISAS: { codigo: Divisa; nombre: string; simbolo: string }[] = [
+  { codigo: "USD", nombre: "Dólares", simbolo: "$" },
+  { codigo: "COP", nombre: "Pesos colombianos", simbolo: "COP$" },
+  { codigo: "EUR", nombre: "Euros", simbolo: "€" },
+];
 
 export type EstadoPublicacion = "activa" | "pausada" | "cerrada";
 
@@ -135,10 +150,12 @@ export type OperacionDivisa = "compra" | "venta";
 
 export type MetodoPago = "pago-movil" | "efectivo" | "zelle" | "binance" | "transferencia";
 
-export interface PublicacionDolar extends PublicacionBase {
-  tipo: "dolar";
+export interface PublicacionDivisa extends PublicacionBase {
+  tipo: "divisa";
   operacion: OperacionDivisa;
-  /** Bolívares por dólar. */
+  /** Qué moneda se compra o se vende. */
+  divisa: Divisa;
+  /** Bolívares por una unidad de esa moneda. */
   tasa: number;
   montoMin: number;
   montoMax: number;
@@ -168,7 +185,7 @@ export type Publicacion =
   | PublicacionProducto
   | PublicacionNegocio
   | PublicacionMototaxi
-  | PublicacionDolar
+  | PublicacionDivisa
   | PublicacionRifa;
 
 /* ----------------------------------------------------------------- */

@@ -230,7 +230,7 @@ function BloqueVerificacion({ pedida }: { pedida: boolean }) {
           <p className="font-semibold text-fg">Tu cuenta no está verificada</p>
           <p className="mt-1 text-sm leading-relaxed text-fg-muted">
             Puedes publicar artículos, tu negocio, rifas y mototaxis con normalidad. El sello
-            de verificado lo da la administración y es lo que abre el tablón de dólares.
+            de verificado lo da la administración y es lo que abre el tablón de divisas.
           </p>
         </div>
       </div>

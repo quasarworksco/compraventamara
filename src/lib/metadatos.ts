@@ -4,7 +4,7 @@ import type { Metadata } from "next";
  * Metadatos de una sección.
  *
  * Sin esto, todas las páginas heredan el título y la imagen de la portada, y
- * compartir el tablón de dólares en un chat se ve exactamente igual que
+ * compartir el tablón de divisas en un chat se ve exactamente igual que
  * compartir la página principal. Quien lo recibe no sabe qué le mandaron.
  *
  * `indexable: false` es para las pantallas que no tienen sentido en un

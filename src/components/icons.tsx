@@ -189,6 +189,15 @@ export function IconSend(props: IconProps) {
   );
 }
 
+export function IconLapiz(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20h4.2L19.6 8.6a2.1 2.1 0 0 0 0-3l-1.2-1.2a2.1 2.1 0 0 0-3 0L4 15.8V20Z" />
+      <path d="m14.4 5.6 4 4" />
+    </Icon>
+  );
+}
+
 export function IconTrash(props: IconProps) {
   return (
     <Icon {...props}>

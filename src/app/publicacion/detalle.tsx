@@ -12,6 +12,7 @@ import {
   IconClock,
   IconImage,
   IconPin,
+  IconLapiz,
   IconTicket,
   IconTrash,
 } from "@/components/icons";
@@ -215,7 +216,7 @@ function textoParaCompartir(publicacion: Publicacion): string {
       ? ` — ${formatearPrecio(publicacion.precio, publicacion.moneda)}`
       : publicacion.tipo === "rifa"
         ? ` — ${formatearPrecio(publicacion.precioNumero, publicacion.moneda)} el número`
-        : publicacion.tipo === "dolar"
+        : publicacion.tipo === "divisa"
           ? ` — ${formatearTasa(publicacion.tasa)} por dólar`
           : "";
 
@@ -236,7 +237,7 @@ function Precio({ publicacion }: { publicacion: Publicacion }) {
           Desde {formatearPrecio(publicacion.tarifaDesde, publicacion.moneda)}
         </p>
       );
-    case "dolar":
+    case "divisa":
       return (
         <p className="mt-1 text-2xl font-bold text-brand-600 dark:text-brand-300">
           {formatearTasa(publicacion.tasa)}
@@ -276,7 +277,7 @@ function DatosPropios({ publicacion }: { publicacion: Publicacion }) {
     );
   }
 
-  if (publicacion.tipo === "dolar") {
+  if (publicacion.tipo === "divisa") {
     return (
       <dl className="grid grid-cols-2 gap-3 rounded-card bg-surface-2 p-3.5 text-sm">
         <Dato
@@ -380,6 +381,12 @@ function Herramientas({ publicacion, dias }: { publicacion: Publicacion; dias: n
             : "Ya venció: prorrógala desde tu perfil para volver a mostrarla."}
         </p>
       ) : null}
+
+      <Link href={`/publicar/?editar=${publicacion.id}`} className="block">
+        <Boton ancho variante="secundario" icono={<IconLapiz size={17} />}>
+          Editar
+        </Boton>
+      </Link>
 
       <div className="flex gap-2">
         {publicacion.estado === "activa" ? (
