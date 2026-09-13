@@ -154,8 +154,7 @@ function Formulario({
   );
   const [divisa, setDivisa] = useState<Divisa>(de("divisa", "divisa") ?? "USD");
   const [tasa, setTasa] = useState(num(de("divisa", "tasa")));
-  const [montoMin, setMontoMin] = useState(num(de("divisa", "montoMin")));
-  const [montoMax, setMontoMax] = useState(num(de("divisa", "montoMax")));
+  const [monto, setMonto] = useState(num(de("divisa", "monto")));
   const [metodos, setMetodos] = useState<MetodoPago[]>(
     de("divisa", "metodos") ?? ["efectivo"],
   );
@@ -236,8 +235,7 @@ function Formulario({
           operacion,
           divisa,
           tasa: Number(tasa),
-          montoMin: Number(montoMin) || 0,
-          montoMax: Number(montoMax) || 0,
+          monto: Number(monto) || 0,
           metodos,
         };
       case "rifa":
@@ -527,24 +525,16 @@ function Formulario({
                 value={tasa}
                 onChange={(e) => setTasa(e.target.value)}
               />
-              <div className="grid grid-cols-2 gap-3">
-                <Campo
-                  etiqueta="Desde"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  value={montoMin}
-                  onChange={(e) => setMontoMin(e.target.value)}
-                />
-                <Campo
-                  etiqueta="Hasta"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  value={montoMax}
-                  onChange={(e) => setMontoMax(e.target.value)}
-                />
-              </div>
+              <Campo
+                etiqueta={`¿Cuánto ${operacion === "venta" ? "vendes" : "buscas"}? (${nombreDivisa(divisa)})`}
+                type="number"
+                inputMode="decimal"
+                min="0"
+                placeholder="500"
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+                ayuda="Lo que tienes disponible ahora mismo."
+              />
               <fieldset>
                 <legend className="mb-1.5 text-sm font-medium text-fg-muted">
                   Métodos que aceptas

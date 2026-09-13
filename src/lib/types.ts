@@ -157,8 +157,9 @@ export interface PublicacionDivisa extends PublicacionBase {
   divisa: Divisa;
   /** Bolívares por una unidad de esa moneda. */
   tasa: number;
-  montoMin: number;
-  montoMax: number;
+  /** Cuánto tiene disponible, en su propia moneda. Un solo número: un rango
+   *  obligaba a quien publica a pensar dos cifras donde solo tiene una. */
+  monto: number;
   metodos: MetodoPago[];
 }
 

@@ -31,6 +31,7 @@ import {
   ETIQUETA_METODO,
   ETIQUETA_TIPO,
   formatearFecha,
+  formatearDivisa,
   formatearPrecio,
   formatearTasa,
   formatearTelefono,
@@ -285,11 +286,8 @@ function DatosPropios({ publicacion }: { publicacion: Publicacion }) {
           valor={publicacion.operacion === "venta" ? "Vende efectivo" : "Compra efectivo"}
         />
         <Dato
-          etiqueta="Monto"
-          valor={`${formatearPrecio(publicacion.montoMin, "USD")} – ${formatearPrecio(
-            publicacion.montoMax,
-            "USD",
-          )}`}
+          etiqueta="Disponible"
+          valor={formatearDivisa(publicacion.monto, publicacion.divisa ?? "USD")}
         />
         <div className="col-span-2">
           <dt className="text-xs text-fg-subtle">Métodos</dt>

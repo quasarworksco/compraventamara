@@ -433,10 +433,9 @@ function TarjetaDivisa({
 
       <dl className="mt-2.5 grid grid-cols-2 gap-2 rounded-xl bg-surface-2 p-3 text-sm">
         <div>
-          <dt className="text-xs text-fg-subtle">Monto disponible</dt>
+          <dt className="text-xs text-fg-subtle">Disponible</dt>
           <dd className="font-semibold tabular-nums text-fg">
-            {formatearDivisa(oferta.montoMin, oferta.divisa ?? "USD")} –{" "}
-            {formatearDivisa(oferta.montoMax, oferta.divisa ?? "USD")}
+            {formatearDivisa(oferta.monto, oferta.divisa ?? "USD")}
           </dd>
         </div>
         <div>
