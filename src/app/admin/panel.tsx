@@ -29,9 +29,9 @@ import {
   Insignia,
   SelloVerificado,
 } from "@/components/ui";
+import { mensajeFirestore } from "@/lib/errores";
 import {
   cambiarVerificacion,
-  mensajeAdmin,
   nombrarAdministrador,
   quitarAdministrador,
   useAdministradores,
@@ -143,7 +143,7 @@ function SeccionMiembros() {
     try {
       await cambiarVerificacion(uid, verificado);
     } catch (error) {
-      setFallo(mensajeAdmin(error));
+      setFallo(mensajeFirestore(error, "moderar"));
     } finally {
       setTrabajando(null);
     }

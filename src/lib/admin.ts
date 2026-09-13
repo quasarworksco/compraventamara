@@ -50,39 +50,6 @@ export interface Administrador {
 
 export type NivelAdmin = "dueno" | "admin" | "ninguno";
 
-/**
- * Traduce un fallo de Firestore a algo accionable.
- *
- * El caso que más se da tiene una causa concreta y una salida concreta, así
- * que se nombran las dos en vez de dejar un "permiso denegado" a secas.
- */
-export function mensajeAdmin(error: unknown): string {
-  const codigo = (error as { code?: string })?.code ?? "";
-  if (codigo === "permission-denied") {
-    return (
-      "Firestore rechazó el cambio. Suele ser una de dos: las reglas publicadas " +
-      "todavía nombran otro correo dueño, o tu sesión es anterior a que " +
-      "verificaras el correo. Sal y vuelve a entrar; si sigue igual, vuelve a " +
-      "publicar firestore.rules."
-    );
-  }
-  if (codigo === "unavailable") return "Sin conexión con Firestore. Revisa tu internet.";
-  return error instanceof Error ? error.message : "No se pudo guardar el cambio.";
-}
-
-/**
- * Qué puede hacer quien tiene la sesión abierta ahora mismo.
- *
- * Lo primero que hace es pedir credenciales frescas, y no es un detalle: el
- * token de identidad se acuña al iniciar sesión y lleva dentro
- * `email_verified` tal como estaba en ese momento. Quien crea su cuenta, abre
- * el enlace del correo y vuelve, sigue cargando un token que dice que no ha
- * verificado nada —hasta una hora, que es lo que tarda en caducar—.
- *
- * Las reglas de Firestore leen ese token, no al cliente. Sin refrescarlo, el
- * panel dejaba entrar al dueño y Firestore le rechazaba cada escritura sin
- * que nada lo explicara.
- */
 export function useNivelAdmin(usuario: User | null): { nivel: NivelAdmin; cargando: boolean } {
   const [estado, setEstado] = useState<{ clave: string; nivel: NivelAdmin }>({
     clave: "",

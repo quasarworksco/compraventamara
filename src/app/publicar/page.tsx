@@ -30,6 +30,7 @@ import {
   Selector,
 } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
+import { mensajeFirestore } from "@/lib/errores";
 import { ETIQUETA_METODO, nombreDivisa } from "@/lib/formato";
 import {
   CATEGORIAS_MERCADO,
@@ -331,7 +332,7 @@ function Formulario({
       const id = await crearPublicacion(borrador, miembro!);
       router.replace(`/publicacion/?id=${id}`);
     } catch (error) {
-      setFallo(error instanceof Error ? error.message : "No se pudo publicar.");
+      setFallo(mensajeFirestore(error, tipo === "divisa" ? "publicar-divisa" : "publicar"));
       setEnviando(false);
     }
   }
