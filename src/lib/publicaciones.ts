@@ -42,6 +42,8 @@ export interface OpcionesLista {
   autorUid?: string;
   /** Número máximo de documentos a traer. */
   tope?: number;
+  /** Tipos que no deben aparecer. Solo aplica cuando no se pidió uno concreto. */
+  excluir?: TipoPublicacion[];
 }
 
 export interface ResultadoLista {
@@ -67,8 +69,9 @@ export interface ResultadoLista {
  * y devolver el `orderBy` a la consulta.
  */
 export function usePublicaciones(opciones: OpcionesLista = {}): ResultadoLista {
-  const { tipo, autorUid, tope = 60 } = opciones;
-  const clave = `${tipo ?? ""}|${autorUid ?? ""}|${tope}`;
+  const { tipo, autorUid, tope = 60, excluir } = opciones;
+  const fuera = excluir?.join(",") ?? "";
+  const clave = `${tipo ?? ""}|${autorUid ?? ""}|${tope}|${fuera}`;
 
   const [estado, setEstado] = useState<{
     clave: string;
@@ -100,8 +103,14 @@ export function usePublicaciones(opciones: OpcionesLista = {}): ResultadoLista {
     );
   }, [clave, tipo, autorUid, tope]);
 
+  const visibles = useMemo(() => {
+    if (estado.clave !== clave) return [];
+    if (!excluir?.length) return estado.publicaciones;
+    return estado.publicaciones.filter((p) => !excluir.includes(p.tipo));
+  }, [estado, clave, excluir]);
+
   return {
-    publicaciones: estado.clave === clave ? estado.publicaciones : [],
+    publicaciones: visibles,
     cargando: firebaseListo && estado.clave !== clave,
     error: estado.error,
   };

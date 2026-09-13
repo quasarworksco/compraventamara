@@ -24,6 +24,7 @@ import {
   IconWhatsApp,
 } from "@/components/icons";
 import { Logotipo } from "@/components/logotipo";
+import { PizarraDivisas } from "@/components/pizarra-divisas";
 import { PortadaIglesia } from "@/components/portada-iglesia";
 import { SeguridadPueblo } from "@/components/seguridad-pueblo";
 import { TarjetaPublicacion } from "@/components/tarjeta-publicacion";
@@ -33,6 +34,7 @@ import { useSesion } from "@/lib/auth";
 import { iniciales } from "@/lib/formato";
 import { AUTOR, GRUPO_WHATSAPP, PUEBLO } from "@/lib/pueblo";
 import { usePublicaciones } from "@/lib/publicaciones";
+import type { TipoPublicacion } from "@/lib/types";
 
 /**
  * Las seis secciones del pueblo.
@@ -87,9 +89,17 @@ const SECCIONES = [
   },
 ] as const;
 
+/** Estable entre renderizados: si se creara al vuelo, la lista se recalcularía sola. */
+const EXCLUIDOS_DEL_FEED: TipoPublicacion[] = ["divisa"];
+
 export default function Portada() {
   const { miembro, cargando, configurado } = useSesion();
-  const { publicaciones, cargando: cargandoPublicaciones } = usePublicaciones({ tope: 6 });
+  // Las divisas quedan fuera de este feed: tienen su propia pizarra, y una
+  // oferta de cambio entre una moto y un celular no se lee ni se compara.
+  const { publicaciones, cargando: cargandoPublicaciones } = usePublicaciones({
+    tope: 12,
+    excluir: EXCLUIDOS_DEL_FEED,
+  });
   const [busqueda, setBusqueda] = useState("");
   const router = useRouter();
 
@@ -185,6 +195,8 @@ export default function Portada() {
 
       <TasasDelDia />
 
+      <PizarraDivisas />
+
       {/* Accesos a las secciones */}
       <section aria-labelledby="titulo-secciones" className="px-4">
         <h2 id="titulo-secciones" className="mb-2 text-sm font-semibold text-fg-muted">
@@ -242,7 +254,7 @@ export default function Portada() {
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">
-            {publicaciones.map((publicacion, indice) => (
+            {publicaciones.slice(0, 6).map((publicacion, indice) => (
               <TarjetaPublicacion
                 key={publicacion.id}
                 publicacion={publicacion}
