@@ -9,6 +9,19 @@
  * peor que no tener ninguno.
  */
 
+/**
+ * El grupo de WhatsApp del pueblo.
+ *
+ * La plataforma y el grupo se alimentan mutuamente: quien llega por un enlace
+ * compartido encuentra aquí la puerta al grupo, y quien ya está en el grupo
+ * encuentra aquí sus anuncios ordenados y buscables.
+ */
+export const GRUPO_WHATSAPP =
+  "https://chat.whatsapp.com/Fljz6V4RQjC5JKDQLQRlfB?s=cl&p=i&mlu=0&ilr=4";
+
+/** Quién construyó la plataforma. Firma el pie de la portada. */
+export const AUTOR = "DGP GROUP USA";
+
 export const PUEBLO = {
   nombre: "San Rafael del Moján",
   municipio: "Municipio Mara",

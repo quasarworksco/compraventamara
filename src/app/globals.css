@@ -427,3 +427,47 @@
     pointer-events: none;
   }
 }
+
+@layer utilities {
+  /* Texto sobre fotografía: una sombra difusa y baja sostiene el contraste
+     sin tener que apagar la imagen de debajo. */
+  .sobre-foto {
+    text-shadow:
+      0 1px 2px rgb(6 20 45 / 0.55),
+      0 2px 12px rgb(6 20 45 / 0.4);
+  }
+
+  /* La foto de la portada se acerca muy despacio y vuelve.
+     Treinta segundos de ida: no se ve moverse, se siente viva. */
+  @keyframes acercarse {
+    from { transform: scale(1) translate3d(0, 0, 0); }
+    to   { transform: scale(1.09) translate3d(0, -1.5%, 0); }
+  }
+
+  .acercamiento {
+    animation: acercarse 30s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+}
+
+@layer utilities {
+  /* Bienvenida: la marca entra, respira un instante y la pantalla se va. */
+  @keyframes marca-entra {
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @keyframes bienvenida-desvanece {
+    from { opacity: 1; }
+    to   { opacity: 0; visibility: hidden; }
+  }
+
+  .bienvenida-marca {
+    animation: marca-entra 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .bienvenida-sale {
+    animation: bienvenida-desvanece 0.4s ease-out forwards;
+    pointer-events: none;
+  }
+}

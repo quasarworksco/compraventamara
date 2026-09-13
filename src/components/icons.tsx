@@ -251,6 +251,17 @@ export function IconPhone(props: IconProps) {
   );
 }
 
+export function IconCompartir(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="18" cy="5.5" r="2.6" />
+      <circle cx="6" cy="12" r="2.6" />
+      <circle cx="18" cy="18.5" r="2.6" />
+      <path d="m8.3 10.8 7.4-4M8.3 13.2l7.4 4" />
+    </Icon>
+  );
+}
+
 export function IconMail(props: IconProps) {
   return (
     <Icon {...props}>

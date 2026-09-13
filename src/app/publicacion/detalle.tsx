@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { BarraSuperior } from "@/components/barra-superior";
+import { BotonCompartir } from "@/components/boton-compartir";
 import { BotonWhatsApp } from "@/components/boton-whatsapp";
 import {
   IconClock,
@@ -188,6 +189,15 @@ export function DetallePublicacion({ id }: { id: string }) {
             />
           )}
 
+          {/* Cada reenvío a un grupo del pueblo trae gente nueva. */}
+          <BotonCompartir
+            ancho
+            titulo={publicacion.titulo}
+            texto={textoParaCompartir(publicacion)}
+            ruta={`/publicacion/?id=${publicacion.id}`}
+            etiqueta="Compartir esta publicación"
+          />
+
           <Aviso>
             Mara Comercio solo pone en contacto a las partes. Revisa lo que compras antes de
             pagar y reúnete en un lugar concurrido.
@@ -196,6 +206,20 @@ export function DetallePublicacion({ id }: { id: string }) {
       </main>
     </>
   );
+}
+
+/** La línea que acompaña al enlace cuando alguien reenvía una publicación. */
+function textoParaCompartir(publicacion: Publicacion): string {
+  const precio =
+    publicacion.tipo === "producto"
+      ? ` — ${formatearPrecio(publicacion.precio, publicacion.moneda)}`
+      : publicacion.tipo === "rifa"
+        ? ` — ${formatearPrecio(publicacion.precioNumero, publicacion.moneda)} el número`
+        : publicacion.tipo === "dolar"
+          ? ` — ${formatearTasa(publicacion.tasa)} por dólar`
+          : "";
+
+  return `${publicacion.titulo}${precio}\n${publicacion.zona}\n\nLo vi en Compra Venta Mara:`;
 }
 
 function Precio({ publicacion }: { publicacion: Publicacion }) {

@@ -15,21 +15,23 @@ import {
   IconChat,
   IconDollar,
   IconMoto,
+  IconChevronRight,
   IconSearch,
   IconStore,
   IconTag,
   IconTicket,
   IconUser,
+  IconWhatsApp,
 } from "@/components/icons";
 import { Logotipo } from "@/components/logotipo";
-import { PaisajeMara } from "@/components/paisaje-mara";
+import { PortadaIglesia } from "@/components/portada-iglesia";
 import { SeguridadPueblo } from "@/components/seguridad-pueblo";
 import { TarjetaPublicacion } from "@/components/tarjeta-publicacion";
 import { TasasDelDia } from "@/components/tasas-del-dia";
 import { Avatar, Aviso, Esqueleto } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
 import { iniciales } from "@/lib/formato";
-import { PUEBLO } from "@/lib/pueblo";
+import { AUTOR, GRUPO_WHATSAPP, PUEBLO } from "@/lib/pueblo";
 import { usePublicaciones } from "@/lib/publicaciones";
 
 /**
@@ -100,11 +102,13 @@ export default function Portada() {
   return (
     <main className="flex flex-col gap-7 pb-6">
       {/* Cabecera del pueblo */}
-      <header className="cielo-mara barrido relative overflow-hidden px-4 pb-32 pt-5 text-white">
+      <header className="relative overflow-hidden px-4 pb-10 pt-5 text-white">
+        <PortadaIglesia />
+
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <Logotipo blanco alto={30} />
-            <p className="mt-1 text-xs text-brand-100">
+            <p className="sobre-foto mt-1 text-xs text-white/85">
               {PUEBLO.municipio} · {PUEBLO.estado}
             </p>
           </div>
@@ -130,15 +134,15 @@ export default function Portada() {
           )}
         </div>
 
-        <h1 className="asoma relative z-10 mt-6 text-[27px] font-bold leading-tight tracking-tight">
+        <h1 className="sobre-foto asoma relative z-10 mt-6 text-[28px] font-bold leading-tight tracking-tight">
           {PUEBLO.nombre}
         </h1>
-        <p className="asoma retardo-1 relative z-10 mt-2 max-w-md text-sm leading-relaxed text-brand-100">
+        <p className="sobre-foto asoma retardo-1 relative z-10 mt-2 max-w-md text-sm leading-relaxed text-white/90">
           {PUEBLO.bienvenida}
         </p>
 
         <form onSubmit={buscar} role="search" className="asoma retardo-2 relative z-10 mt-5">
-          <div className="cristal-sobre-azul flex items-center gap-2 rounded-2xl px-3.5 py-1">
+          <div className="cristal-sobre-azul flex items-center gap-2 rounded-2xl bg-brand-900/35 px-3.5 py-1">
             <IconSearch size={19} className="shrink-0 text-white/70" />
             <input
               value={busqueda}
@@ -151,8 +155,18 @@ export default function Portada() {
           </div>
         </form>
 
-        {/* El pueblo visto desde el malecón, al pie de la cabecera. */}
-        <PaisajeMara className="pointer-events-none absolute inset-x-0 bottom-0 h-32 w-full" />
+        {/* La puerta al grupo: quien llega por un enlace compartido entra ahí,
+            y quien ya está en el grupo encuentra aquí sus anuncios ordenados. */}
+        <a
+          href={GRUPO_WHATSAPP}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="pulsable asoma retardo-3 relative z-10 mt-3 flex min-h-12 items-center gap-2.5 rounded-2xl bg-linear-to-b from-wa-400 to-wa-500 px-3.5 text-sm font-semibold text-[#06302a] shadow-lg shadow-black/25 ring-1 ring-white/30"
+        >
+          <IconWhatsApp size={19} className="shrink-0" />
+          <span className="flex-1 text-left">Únete al grupo de WhatsApp del pueblo</span>
+          <IconChevronRight size={17} className="shrink-0 opacity-60" />
+        </a>
       </header>
 
       {!configurado ? (
@@ -244,6 +258,9 @@ export default function Portada() {
         </p>
         <p className="mt-1">
           La página conecta a comprador y vendedor. No participa en el pago ni en la entrega.
+        </p>
+        <p className="mt-3 border-t border-line pt-3 font-medium text-fg-muted">
+          Hecho por {AUTOR}
         </p>
       </footer>
     </main>
