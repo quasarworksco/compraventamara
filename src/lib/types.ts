@@ -112,6 +112,18 @@ interface PublicacionBase {
   venceEn: number;
   /** Cuántas veces se ha prorrogado. Solo informativo. */
   prorrogas: number;
+  /**
+   * Hasta cuándo va destacada. Lo escribe solo la administración, cuando quien
+   * publica ha pagado por ello; las reglas impiden que el autor se lo ponga.
+   */
+  destacadaHasta?: number;
+  /**
+   * Cuándo se cerró el anuncio. Se llena al marcarlo vendido.
+   *
+   * Cerrar en vez de borrar es lo que permite saber cuánto se cierra de verdad
+   * aquí: un anuncio borrado no deja ninguna huella de que sirvió para algo.
+   */
+  cerradaEn?: number;
   /** Copia del autor para pintar la tarjeta sin una segunda lectura. */
   autorUid: string;
   autorCodigo: string;
@@ -149,14 +161,61 @@ export interface PublicacionNegocio extends PublicacionBase {
   horario: string;
   /** Enlace opcional a Instagram, catálogo, etc. */
   enlace?: string;
+  /**
+   * Punto exacto del local.
+   *
+   * La dirección escrita no basta en un pueblo donde media calle no tiene
+   * número: "Av. 3, al lado de la panadería" le sirve a quien ya sabe dónde
+   * es. Con el punto, cualquiera abre Maps y llega.
+   */
+  coordenadas?: Coordenadas;
   /** Los negocios del directorio no vencen mientras el dueño los mantenga. */
   permanente: true;
 }
 
+/** Un punto en el mapa, como lo entiende Google Maps. */
+export interface Coordenadas {
+  lat: number;
+  lng: number;
+}
+
+/**
+ * Moto o carro. Son el mismo oficio con distinto vehículo —una persona, una
+ * zona que cubre y una tarifa mínima—, así que comparten ficha y se separan en
+ * dos directorios por este campo, en vez de duplicar todo el modelo.
+ */
+export type ClaseTransporte = "mototaxi" | "taxi";
+
+export const CLASES_TRANSPORTE: {
+  id: ClaseTransporte;
+  etiqueta: string;
+  plural: string;
+  vehiculo: string;
+}[] = [
+  { id: "mototaxi", etiqueta: "Mototaxi", plural: "Mototaxis", vehiculo: "la moto" },
+  { id: "taxi", etiqueta: "Taxi", plural: "Taxis", vehiculo: "el carro" },
+];
+
 export interface PublicacionMototaxi extends PublicacionBase {
   tipo: "mototaxi";
+  /**
+   * Moto o carro. Los documentos anteriores a los taxis no lo traen, así que
+   * quien lo lea debe tratar la ausencia como "mototaxi".
+   */
+  clase?: ClaseTransporte;
+  /**
+   * Marca y modelo del vehículo, p. ej. "Bera 150" o "Chevrolet Aveo".
+   *
+   * Junto con la placa es lo que permite comprobar, antes de montarse, que el
+   * que llegó es el que se anunció. Por eso la ficha se pinta como un carnet:
+   * foto, nombre, código de miembro y vehículo, todo junto.
+   */
+  modelo?: string;
+  /** Placa del vehículo. Se guarda en mayúsculas y sin guiones. */
+  placa?: string;
   /** Sectores que cubre el motorizado. */
   cobertura: string[];
+  /** Lo que cuesta la carrera más corta. */
   tarifaDesde: number;
   moneda: Moneda;
   disponible: boolean;
@@ -205,6 +264,62 @@ export type Publicacion =
   | PublicacionMototaxi
   | PublicacionDivisa
   | PublicacionRifa;
+
+/* ----------------------------------------------------------------- */
+/* Reportes                                                           */
+/* ----------------------------------------------------------------- */
+
+/**
+ * Por qué alguien reporta algo.
+ *
+ * La lista es corta a propósito: con veinte motivos nadie elige bien y la
+ * cola de moderación se llena de "otro". Estos cinco cubren lo que de verdad
+ * pasa en un grupo de compraventa.
+ */
+export type MotivoReporte =
+  | "estafa"
+  | "no-existe"
+  | "precio-enganoso"
+  | "ofensivo"
+  | "repetido"
+  | "otro";
+
+export const MOTIVOS_REPORTE: { id: MotivoReporte; etiqueta: string; ayuda: string }[] = [
+  { id: "estafa", etiqueta: "Es una estafa", ayuda: "Cobró y no entregó, o pidió adelanto sospechoso." },
+  { id: "no-existe", etiqueta: "Lo que ofrece no existe", ayuda: "El artículo o el negocio no es real." },
+  { id: "precio-enganoso", etiqueta: "El precio engaña", ayuda: "Anuncia un precio y al escribir cobra otro." },
+  { id: "ofensivo", etiqueta: "Contenido ofensivo", ayuda: "Insultos, violencia o algo que no va aquí." },
+  { id: "repetido", etiqueta: "Está repetido", ayuda: "La misma publicación varias veces." },
+  { id: "otro", etiqueta: "Otra cosa", ayuda: "Cuéntanos qué pasa." },
+];
+
+export type EstadoReporte = "abierto" | "resuelto" | "descartado";
+
+/**
+ * Un aviso de la comunidad. Vive en `reportes/{id}`.
+ *
+ * Solo la administración los lee: quién reportó a quién no puede ser público
+ * en un pueblo donde todos se conocen, o nadie volvería a reportar.
+ */
+export interface Reporte {
+  id: string;
+  /** Qué se reporta: un anuncio concreto o la persona detrás. */
+  sobre: "publicacion" | "miembro";
+  /** Id de la publicación, o uid del miembro. */
+  objetivoId: string;
+  /** Copia de lo reportado, para que la cola se entienda sin abrir nada. */
+  objetivoTitulo: string;
+  objetivoAutorUid: string;
+  motivo: MotivoReporte;
+  detalle: string;
+  reportanteUid: string;
+  reportanteCodigo: string;
+  reportanteNombre: string;
+  creadoEn: number;
+  estado: EstadoReporte;
+  resueltoEn?: number;
+  resueltoPor?: string;
+}
 
 /* ----------------------------------------------------------------- */
 /* Tasas del dólar                                                    */

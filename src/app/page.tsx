@@ -61,8 +61,8 @@ const SECCIONES = [
   },
   {
     href: "/mototaxis",
-    titulo: "Mototaxis",
-    detalle: "Carreras y tarifas",
+    titulo: "Transporte",
+    detalle: "Mototaxis y taxis",
     Icono: IconMoto,
     acento: "from-brand-400 to-brand-600",
   },
@@ -111,7 +111,10 @@ export default function Portada() {
   function buscar(evento: FormEvent) {
     evento.preventDefault();
     const termino = busqueda.trim();
-    router.push(termino ? `/mercado?q=${encodeURIComponent(termino)}` : "/mercado");
+    // A /buscar y no a /mercado: quien escribe "panadería" quiere la panadería
+    // del directorio, y no tiene por qué saber en cuál de las cinco secciones
+    // la pusimos nosotros.
+    router.push(termino ? `/buscar/?q=${encodeURIComponent(termino)}` : "/buscar/");
   }
 
   return (
@@ -167,7 +170,7 @@ export default function Portada() {
               onChange={(e) => setBusqueda(e.target.value)}
               type="search"
               placeholder="¿Qué estás buscando?"
-              aria-label="Buscar en el marketplace"
+              aria-label="Buscar en todo el pueblo"
               className="min-h-12 w-full bg-transparent text-white outline-none placeholder:text-white/60"
             />
           </div>

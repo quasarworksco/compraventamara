@@ -12,6 +12,7 @@ import { Suspense, useState, type FormEvent } from "react";
 
 import { BarraSuperior } from "@/components/barra-superior";
 import {
+  IconCarro,
   IconDollar,
   IconMoto,
   IconStore,
@@ -20,6 +21,7 @@ import {
   IconVerified,
 } from "@/components/icons";
 import { SelectorImagenes } from "@/components/selector-imagenes";
+import { SelectorUbicacion } from "@/components/selector-ubicacion";
 import {
   AreaTexto,
   Aviso,
@@ -31,7 +33,7 @@ import {
 } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
 import { mensajeFirestore } from "@/lib/errores";
-import { ETIQUETA_METODO, nombreDivisa } from "@/lib/formato";
+import { ETIQUETA_METODO, nombreDivisa, normalizarPlaca } from "@/lib/formato";
 import {
   CATEGORIAS_MERCADO,
   CATEGORIAS_NEGOCIO,
@@ -47,11 +49,14 @@ import {
   type BorradorPublicacion,
 } from "@/lib/publicaciones";
 import {
+  CLASES_TRANSPORTE,
   DIVISAS,
   HORAS_VIGENCIA_DOLAR,
   type Divisa,
   type MetodoPago,
   type Moneda,
+  type ClaseTransporte,
+  type Coordenadas,
   type Publicacion,
   type TipoPublicacion,
 } from "@/lib/types";
@@ -61,7 +66,7 @@ const TIPOS = [
   { tipo: "negocio", titulo: "Negocio", detalle: "Ficha del directorio", Icono: IconStore },
   { tipo: "divisa", titulo: "Divisas", detalle: "Compro o vendo efectivo", Icono: IconDollar },
   { tipo: "rifa", titulo: "Rifa", detalle: "Números y sorteo", Icono: IconTicket },
-  { tipo: "mototaxi", titulo: "Mototaxi", detalle: "Ofrezco carreras", Icono: IconMoto },
+  { tipo: "mototaxi", titulo: "Transporte", detalle: "Mototaxi o taxi", Icono: IconMoto },
 ] as const satisfies readonly { tipo: TipoPublicacion; titulo: string; detalle: string; Icono: typeof IconTag }[];
 
 const METODOS: MetodoPago[] = ["pago-movil", "efectivo", "zelle", "binance", "transferencia"];
@@ -148,6 +153,9 @@ function Formulario({
   const [direccion, setDireccion] = useState(de("negocio", "direccion") ?? "");
   const [horario, setHorario] = useState(de("negocio", "horario") ?? "");
   const [enlace, setEnlace] = useState(de("negocio", "enlace") ?? "");
+  const [coordenadas, setCoordenadas] = useState<Coordenadas | undefined>(
+    de("negocio", "coordenadas"),
+  );
 
   // Divisas.
   const [operacion, setOperacion] = useState<"compra" | "venta">(
@@ -170,7 +178,10 @@ function Formulario({
     num(de("rifa", "totalNumeros")) || "100",
   );
 
-  // Mototaxi.
+  // Transporte: mototaxi o taxi.
+  const [clase, setClase] = useState<ClaseTransporte>(de("mototaxi", "clase") ?? "mototaxi");
+  const [modelo, setModelo] = useState(de("mototaxi", "modelo") ?? "");
+  const [placa, setPlaca] = useState(de("mototaxi", "placa") ?? "");
   const [tarifaDesde, setTarifaDesde] = useState(num(de("mototaxi", "tarifaDesde")));
   const [cobertura, setCobertura] = useState<string[]>(de("mototaxi", "cobertura") ?? []);
 
@@ -226,6 +237,7 @@ function Formulario({
           direccion: direccion.trim(),
           horario: horario.trim(),
           enlace: enlace.trim() || undefined,
+          coordenadas,
           permanente: true,
         };
       case "divisa":
@@ -257,11 +269,16 @@ function Formulario({
         return {
           ...comun,
           tipo: "mototaxi",
-          titulo: `Mototaxi · ${miembro!.nombre} ${miembro!.apellido}`,
+          titulo: `${clase === "taxi" ? "Taxi" : "Mototaxi"} · ${miembro!.nombre} ${miembro!.apellido}`,
+          clase,
+          modelo: modelo.trim(),
+          placa: normalizarPlaca(placa),
           cobertura,
           tarifaDesde: Number(tarifaDesde),
           moneda,
-          disponible: true,
+          // Al corregir la ficha no se reabre solo a quien había colgado la
+          // moto: si estaba marcado como no disponible, sigue estándolo.
+          disponible: de("mototaxi", "disponible") ?? true,
         };
     }
   }
@@ -293,8 +310,16 @@ function Formulario({
       if (!Number(precioNumero)) return "Indica el precio del número.";
       if (!fechaSorteo) return "Indica el día del sorteo.";
     }
-    if (tipo === "mototaxi" && !Number(tarifaDesde)) {
-      return "Indica la tarifa mínima de una carrera.";
+    if (tipo === "mototaxi") {
+      if (!modelo.trim()) {
+        return clase === "taxi"
+          ? "Indica la marca y el modelo del carro."
+          : "Indica la marca y el modelo de la moto.";
+      }
+      // La placa es lo que deja a un pasajero comprobar, antes de montarse,
+      // que el que llegó es el que se anunció. Sin ella el carnet no sirve.
+      if (normalizarPlaca(placa).length < 4) return "Escribe la placa completa.";
+      if (!Number(tarifaDesde)) return "Indica cuánto cuesta la carrera mínima.";
     }
     return null;
   }
@@ -489,6 +514,7 @@ function Formulario({
                 onChange={(e) => setEnlace(e.target.value)}
                 ayuda="Instagram, catálogo o página."
               />
+              <SelectorUbicacion valor={coordenadas} alCambiar={setCoordenadas} />
             </>
           ) : null}
 
@@ -632,9 +658,50 @@ function Formulario({
 
           {tipo === "mototaxi" ? (
             <>
+              {/* Moto o carro. Se elige primero porque cambia lo que se
+                  pregunta después y en cuál de los dos directorios sale. */}
+              <fieldset>
+                <legend className="mb-1.5 text-sm font-medium text-fg-muted">
+                  ¿Qué manejas?
+                </legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {CLASES_TRANSPORTE.map((opcion) => (
+                    <button
+                      key={opcion.id}
+                      type="button"
+                      onClick={() => setClase(opcion.id)}
+                      aria-pressed={clase === opcion.id}
+                      className={`flex min-h-12 items-center justify-center gap-2 rounded-xl border text-sm font-semibold ${
+                        clase === opcion.id
+                          ? "border-brand-600 bg-brand-600 text-white"
+                          : "border-line bg-surface text-fg-muted"
+                      }`}
+                    >
+                      {opcion.id === "taxi" ? <IconCarro size={18} /> : <IconMoto size={18} />}
+                      {opcion.etiqueta}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <Campo
+                etiqueta={clase === "taxi" ? "Marca y modelo del carro" : "Marca y modelo de la moto"}
+                placeholder={clase === "taxi" ? "Chevrolet Aveo" : "Bera BR-150"}
+                value={modelo}
+                onChange={(e) => setModelo(e.target.value)}
+              />
+              <Campo
+                etiqueta="Placa"
+                placeholder="AB123CD"
+                autoCapitalize="characters"
+                value={placa}
+                onChange={(e) => setPlaca(e.target.value)}
+                ayuda="Tu ficha se ve como un carnet: con tu foto, tu código de miembro y la placa, el pasajero comprueba antes de montarse que eres tú."
+              />
+
               <div className="grid grid-cols-[1fr_auto] gap-3">
                 <Campo
-                  etiqueta="Tarifa mínima"
+                  etiqueta="Carrera mínima"
                   type="number"
                   inputMode="decimal"
                   min="0"

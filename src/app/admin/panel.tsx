@@ -17,10 +17,12 @@ import type { User } from "firebase/auth";
 
 import {
   IconAlert,
+  IconBandera,
   IconCheck,
   IconDescargar,
   IconDollar,
   IconEscudo,
+  IconEstrella,
   IconGrafico,
   IconLogout,
   IconSearch,
@@ -55,6 +57,12 @@ import {
 import { DIAS_TENDENCIA, calcularResumen } from "@/lib/estadisticas";
 import { exportarMiembros, exportarPublicaciones } from "@/lib/exportar";
 import {
+  reabrirReporte,
+  resolverReporte,
+  useReportes,
+} from "@/lib/reportes";
+import {
+  ETIQUETA_MOTIVO,
   ETIQUETA_TIPO,
   formatearTasa,
   formatearTelefono,
@@ -63,12 +71,22 @@ import {
   nombreCompleto,
   normalizarBusqueda,
 } from "@/lib/formato";
-import { borrarPublicacion } from "@/lib/publicaciones";
+import {
+  borrarPublicacion,
+  destacarPublicacion,
+  estaDestacada,
+} from "@/lib/publicaciones";
 import { useAhora } from "@/lib/reloj";
 import { guardarTasasManuales, useTasas } from "@/lib/tasas";
-import type { Miembro, Publicacion, TipoPublicacion } from "@/lib/types";
+import type { Miembro, Publicacion, Reporte, TipoPublicacion } from "@/lib/types";
 
-type Pestana = "resumen" | "miembros" | "publicaciones" | "tasas" | "administradores";
+type Pestana =
+  | "resumen"
+  | "reportes"
+  | "miembros"
+  | "publicaciones"
+  | "tasas"
+  | "administradores";
 
 export function PanelAdmin({
   usuario,
@@ -81,9 +99,18 @@ export function PanelAdmin({
 }) {
   const [pestana, setPestana] = useState<Pestana>("resumen");
   const esDueno = nivel === "dueno";
+  // La cola se consulta desde la cabecera para poder marcar la pestaña: un
+  // reporte sin atender no puede depender de que alguien entre a mirar.
+  const { reportes } = useReportes(true);
+  const abiertos = reportes.filter((r) => r.estado === "abierto").length;
 
   const pestanas: { id: Pestana; etiqueta: string; Icono: typeof IconUser }[] = [
     { id: "resumen", etiqueta: "Resumen", Icono: IconGrafico },
+    {
+      id: "reportes",
+      etiqueta: abiertos > 0 ? `Reportes (${abiertos})` : "Reportes",
+      Icono: IconBandera,
+    },
     { id: "miembros", etiqueta: "Miembros", Icono: IconUser },
     { id: "publicaciones", etiqueta: "Publicaciones", Icono: IconTag },
     { id: "tasas", etiqueta: "Tasas", Icono: IconDollar },
@@ -126,7 +153,9 @@ export function PanelAdmin({
               className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-pill border px-3.5 text-sm font-medium ${
                 pestana === id
                   ? "border-brand-600 bg-brand-600 text-white"
-                  : "border-line bg-surface text-fg-muted"
+                  : id === "reportes" && abiertos > 0
+                    ? "border-danger/40 bg-danger/8 text-danger"
+                    : "border-line bg-surface text-fg-muted"
               }`}
             >
               <Icono size={15} />
@@ -138,6 +167,9 @@ export function PanelAdmin({
 
       <main className="px-4 py-4">
         {pestana === "resumen" ? <SeccionResumen /> : null}
+        {pestana === "reportes" ? (
+          <SeccionReportes reportes={reportes} correo={usuario.email ?? ""} />
+        ) : null}
         {pestana === "miembros" ? <SeccionMiembros /> : null}
         {pestana === "publicaciones" ? <SeccionPublicaciones /> : null}
         {pestana === "tasas" ? <SeccionTasas /> : null}
@@ -229,10 +261,23 @@ function SeccionResumen() {
             valor={anuncios.activas}
             detalle={`${anuncios.nuevas7} esta semana`}
           />
+          <Cifra
+            etiqueta="Se vendieron"
+            valor={anuncios.cerradas30}
+            detalle={`en 30 días · ${anuncios.cerradas} en total`}
+          />
+          <Cifra
+            etiqueta="Destacadas ahora"
+            valor={anuncios.destacadas}
+            detalle="lo que estás cobrando"
+            tono={anuncios.destacadas > 0 ? "aviso" : "neutro"}
+          />
         </Cifras>
         <p className="text-xs text-fg-subtle">
           &laquo;Han publicado&raquo; es la cifra que dice si la plataforma se usa o solo
           se mira. Cuando baja, lo que falta no son miembros: son motivos para publicar.
+          &laquo;Se vendieron&raquo; solo cuenta lo que su dueño marcó como cerrado, así que
+          es un suelo, no el total: siempre habrá quien venda y no lo diga.
         </p>
       </div>
 
@@ -366,6 +411,157 @@ function SeccionResumen() {
           </Boton>
         </div>
       </div>
+    </section>
+  );
+}
+
+/* ----------------------------------------------------------------- */
+/* Reportes                                                           */
+/* ----------------------------------------------------------------- */
+
+/**
+ * La cola de moderación.
+ *
+ * Abiertos arriba y del más viejo al más nuevo: una cola que ordena por lo
+ * último que llegó deja el primer aviso enterrado, que es justo el que lleva
+ * más tiempo sin respuesta.
+ *
+ * Las dos salidas son distintas a propósito. "Atendido" dice que se hizo algo;
+ * "sin fundamento" dice que se miró y no había nada. Un solo botón de cerrar
+ * borraría esa diferencia, y con ella la manera de notar a quien reporta por
+ * deporte.
+ */
+function SeccionReportes({ reportes, correo }: { reportes: Reporte[]; correo: string }) {
+  const [verCerrados, setVerCerrados] = useState(false);
+  const [trabajando, setTrabajando] = useState<string | null>(null);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  async function ejecutar(id: string, accion: () => Promise<void>) {
+    setFallo(null);
+    setTrabajando(id);
+    try {
+      await accion();
+    } catch (error) {
+      setFallo(mensajeFirestore(error, "moderar"));
+    } finally {
+      setTrabajando(null);
+    }
+  }
+
+  const abiertos = reportes.filter((r) => r.estado === "abierto");
+  const cerrados = reportes.filter((r) => r.estado !== "abierto");
+
+  const visibles = verCerrados
+    ? cerrados
+    : [...abiertos].sort((a, b) => a.creadoEn - b.creadoEn);
+
+  return (
+    <section className="flex flex-col gap-3">
+      {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+
+      <Aviso>
+        Lo que llega aquí no lo ve nadie más. Quien reporta queda en el documento para que
+        puedas valorar su criterio, pero su nombre no sale a ninguna parte del sitio.
+      </Aviso>
+
+      <div className="flex gap-2">
+        <Chip activo={!verCerrados} onClick={() => setVerCerrados(false)}>
+          Sin atender ({abiertos.length})
+        </Chip>
+        <Chip activo={verCerrados} onClick={() => setVerCerrados(true)}>
+          Ya cerrados ({cerrados.length})
+        </Chip>
+      </div>
+
+      {visibles.length === 0 ? (
+        <EstadoVacio
+          icono={<IconBandera size={24} />}
+          titulo={verCerrados ? "Todavía no has cerrado ninguno" : "No hay nada por atender"}
+          detalle={
+            verCerrados
+              ? "Aquí quedan los reportes que ya resolviste o descartaste."
+              : "Cuando alguien reporte un anuncio o a una persona, aparecerá aquí."
+          }
+        />
+      ) : null}
+
+      {visibles.map((reporte) => (
+        <article key={reporte.id} className="flex flex-col gap-2.5 tarjeta p-3.5">
+          <div className="flex items-start gap-2.5">
+            <span className="mt-0.5 shrink-0 text-danger">
+              <IconBandera size={17} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-fg">{ETIQUETA_MOTIVO[reporte.motivo]}</p>
+              <p className="clamp-2 text-xs text-fg-muted">{reporte.objetivoTitulo}</p>
+            </div>
+            <Insignia tono={reporte.estado === "abierto" ? "venta" : "neutro"}>
+              {reporte.estado === "abierto"
+                ? "Sin atender"
+                : reporte.estado === "resuelto"
+                  ? "Atendido"
+                  : "Sin fundamento"}
+            </Insignia>
+          </div>
+
+          {reporte.detalle ? (
+            <p className="rounded-xl bg-surface-2 p-2.5 text-sm leading-relaxed text-fg-muted">
+              {reporte.detalle}
+            </p>
+          ) : null}
+
+          <p className="text-xs text-fg-subtle">
+            Lo reportó {reporte.reportanteNombre} ({reporte.reportanteCodigo}){" "}
+            {hace(reporte.creadoEn)}
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            {reporte.sobre === "publicacion" ? (
+              <Link href={`/publicacion/?id=${reporte.objetivoId}`} className="flex-1">
+                <Boton variante="secundario" ancho className="!min-h-10 !text-sm">
+                  Ver la publicación
+                </Boton>
+              </Link>
+            ) : null}
+
+            {reporte.estado === "abierto" ? (
+              <>
+                <Boton
+                  variante="secundario"
+                  cargando={trabajando === reporte.id}
+                  onClick={() =>
+                    ejecutar(reporte.id, () =>
+                      resolverReporte(reporte.id, "descartado", correo),
+                    )
+                  }
+                  className="!min-h-10 flex-1 !text-sm"
+                >
+                  Sin fundamento
+                </Boton>
+                <Boton
+                  cargando={trabajando === reporte.id}
+                  onClick={() =>
+                    ejecutar(reporte.id, () => resolverReporte(reporte.id, "resuelto", correo))
+                  }
+                  icono={<IconCheck size={16} />}
+                  className="!min-h-10 flex-1 !text-sm"
+                >
+                  Atendido
+                </Boton>
+              </>
+            ) : (
+              <Boton
+                variante="secundario"
+                cargando={trabajando === reporte.id}
+                onClick={() => ejecutar(reporte.id, () => reabrirReporte(reporte.id))}
+                className="!min-h-10 flex-1 !text-sm"
+              >
+                Devolver a la cola
+              </Boton>
+            )}
+          </div>
+        </article>
+      ))}
     </section>
   );
 }
@@ -680,38 +876,131 @@ function SeccionPublicaciones() {
       ) : null}
 
       {visibles.map((publicacion) => (
-        <article key={publicacion.id} className="flex items-center gap-3 tarjeta p-3">
-          <div className="min-w-0 flex-1">
-            <Link
-              href={`/publicacion/?id=${publicacion.id}`}
-              className="clamp-1 font-semibold text-fg"
-            >
-              {publicacion.titulo}
-            </Link>
-            <p className="clamp-1 text-xs text-fg-subtle">
-              {publicacion.autorNombre} {publicacion.autorApellido} · {publicacion.autorCodigo}
-            </p>
-            <div className="mt-1 flex flex-wrap gap-1.5">
-              <Insignia tono="marca">{ETIQUETA_TIPO[publicacion.tipo]}</Insignia>
-              <Insignia>{hace(publicacion.creadaEn)}</Insignia>
-              {viva(publicacion) ? null : <Insignia tono="venta">Fuera del aire</Insignia>}
-            </div>
-          </div>
-          <Boton
-            variante="peligro"
-            icono={<IconTrash size={16} />}
-            onClick={() => {
-              if (window.confirm(`¿Borrar "${publicacion.titulo}"? No se puede deshacer.`)) {
-                borrarPublicacion(publicacion.id);
-              }
-            }}
-          >
-            Borrar
-          </Boton>
-        </article>
+        <FilaPublicacion key={publicacion.id} publicacion={publicacion} viva={viva(publicacion)} />
       ))}
     </section>
   );
+}
+
+
+/**
+ * Una publicación en el panel, con el destaque a mano.
+ *
+ * Destacar se cobra por fuera —Pago Móvil y captura por WhatsApp— y se concede
+ * aquí. Es a propósito: montar una pasarela de pago para un pueblo donde todo
+ * se paga por Pago Móvil sería resolver un problema que nadie tiene, y meter
+ * una dependencia que hay que mantener para siempre.
+ *
+ * Las reglas de Firestore rechazan este campo si lo escribe el autor, así que
+ * el cobro no depende de que la interfaz esconda el botón.
+ */
+function FilaPublicacion({ publicacion, viva }: { publicacion: Publicacion; viva: boolean }) {
+  const [trabajando, setTrabajando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+  const destacada = estaDestacada(publicacion);
+
+  async function destacar(dias: number) {
+    setFallo(null);
+    setTrabajando(true);
+    try {
+      await destacarPublicacion(publicacion.id, dias);
+    } catch (error) {
+      setFallo(mensajeFirestore(error, "moderar"));
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  return (
+    <article
+      className={`flex flex-col gap-2.5 tarjeta p-3 ${destacada ? "ring-2 ring-brand-400" : ""}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <Link
+            href={`/publicacion/?id=${publicacion.id}`}
+            className="clamp-1 font-semibold text-fg"
+          >
+            {publicacion.titulo}
+          </Link>
+          <p className="clamp-1 text-xs text-fg-subtle">
+            {publicacion.autorNombre} {publicacion.autorApellido} · {publicacion.autorCodigo}
+          </p>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            <Insignia tono="marca">{ETIQUETA_TIPO[publicacion.tipo]}</Insignia>
+            <Insignia>{hace(publicacion.creadaEn)}</Insignia>
+            {destacada ? (
+              <Insignia tono="verde">
+                <IconEstrella size={11} />
+                Destacada {hasta(publicacion.destacadaHasta)}
+              </Insignia>
+            ) : null}
+            {publicacion.estado === "cerrada" ? (
+              <Insignia tono="compra">Vendida</Insignia>
+            ) : viva ? null : (
+              <Insignia tono="venta">Fuera del aire</Insignia>
+            )}
+          </div>
+        </div>
+        <Boton
+          variante="peligro"
+          icono={<IconTrash size={16} />}
+          onClick={() => {
+            if (window.confirm(`¿Borrar "${publicacion.titulo}"? No se puede deshacer.`)) {
+              borrarPublicacion(publicacion.id);
+            }
+          }}
+        >
+          Borrar
+        </Boton>
+      </div>
+
+      {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+
+      <div className="flex flex-wrap gap-2">
+        {destacada ? (
+          <Boton
+            variante="secundario"
+            cargando={trabajando}
+            onClick={() => destacar(0)}
+            className="!min-h-9 !px-3 !text-sm"
+          >
+            Quitar el destaque
+          </Boton>
+        ) : (
+          <>
+            <Boton
+              variante="secundario"
+              cargando={trabajando}
+              onClick={() => destacar(7)}
+              icono={<IconEstrella size={15} />}
+              className="!min-h-9 !px-3 !text-sm"
+            >
+              Destacar 7 días
+            </Boton>
+            <Boton
+              variante="secundario"
+              cargando={trabajando}
+              onClick={() => destacar(15)}
+              icono={<IconEstrella size={15} />}
+              className="!min-h-9 !px-3 !text-sm"
+            >
+              15 días
+            </Boton>
+          </>
+        )}
+      </div>
+    </article>
+  );
+}
+
+/** "hasta el 4 oct", para saber cuándo se le acaba lo pagado. */
+function hasta(marca: number | undefined): string {
+  if (!marca) return "";
+  return `hasta el ${new Date(marca).toLocaleDateString("es-VE", {
+    day: "numeric",
+    month: "short",
+  })}`;
 }
 
 /** Pastilla de filtro. La misma en las dos listas del panel. */

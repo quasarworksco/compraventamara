@@ -367,6 +367,58 @@ export function IconDescargar(props: IconProps) {
   );
 }
 
+/** Reportar: una bandera plantada. */
+export function IconBandera(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5.5 21V3.6" />
+      <path d="M5.5 4.3c3.6-1.5 5.9 1.5 9.5 0 1.4-.6 2.4-.5 3.5 0v9.2c-1.1.5-2.1.6-3.5 0-3.6-1.5-5.9 1.5-9.5 0" />
+    </Icon>
+  );
+}
+
+/** Publicación destacada: una estrella. */
+export function IconEstrella(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m12 3.3 2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.5l5.9-.8L12 3.3Z" />
+    </Icon>
+  );
+}
+
+/** Cómo llegar: el mapa doblado. */
+export function IconMapa(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9.2 4.3 3.5 6.5v13.2l5.7-2.2 5.6 2.2 5.7-2.2V4.3l-5.7 2.2-5.6-2.2Z" />
+      <path d="M9.2 4.3v13.2M14.8 6.5v13.2" />
+    </Icon>
+  );
+}
+
+/** Tomar la ubicación actual: la mira del GPS. */
+export function IconLocalizar(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="3.2" />
+      <circle cx="12" cy="12" r="7.6" />
+      <path d="M12 2v2.4M12 19.6V22M22 12h-2.4M4.4 12H2" />
+    </Icon>
+  );
+}
+
+/** Taxi: el carro, para separarlo de la moto en el directorio. */
+export function IconCarro(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4.6 16.5v2.1a.9.9 0 0 0 .9.9h1.4a.9.9 0 0 0 .9-.9v-1.1M19.4 16.5v2.1a.9.9 0 0 1-.9.9h-1.4a.9.9 0 0 1-.9-.9v-1.1" />
+      <path d="M3.4 16.5h17.2v-3.7l-1.5-4.2a1.6 1.6 0 0 0-1.5-1.1H6.4a1.6 1.6 0 0 0-1.5 1.1l-1.5 4.2v3.7Z" />
+      <path d="M3.9 12.8h16.2" />
+      <path d="M6.9 14.6h.1M17 14.6h.1" />
+    </Icon>
+  );
+}
+
 export function IconArrowUp(props: IconProps) {
   return (
     <Icon {...props}>

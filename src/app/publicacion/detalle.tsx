@@ -7,12 +7,15 @@ import { useState } from "react";
 
 import { BarraSuperior } from "@/components/barra-superior";
 import { BotonCompartir } from "@/components/boton-compartir";
+import { BotonMapa } from "@/components/boton-mapa";
+import { BotonReportar } from "@/components/boton-reportar";
 import { BotonWhatsApp } from "@/components/boton-whatsapp";
 import {
+  IconCheck,
   IconClock,
   IconImage,
-  IconPin,
   IconLapiz,
+  IconPin,
   IconTicket,
   IconTrash,
 } from "@/components/icons";
@@ -27,6 +30,8 @@ import {
   SelloVerificado,
 } from "@/components/ui";
 import { miniatura } from "@/lib/cloudinary";
+import { coordenadasValidas } from "@/lib/mapas";
+import { reporteDePublicacion } from "@/lib/reportes";
 import { useSesion } from "@/lib/auth";
 import {
   ETIQUETA_METODO,
@@ -35,6 +40,7 @@ import {
   formatearDivisa,
   formatearPrecio,
   formatearTasa,
+  formatearPlaca,
   formatearTelefono,
   hace,
   iniciales,
@@ -42,7 +48,8 @@ import {
 } from "@/lib/formato";
 import {
   borrarPublicacion,
-  cambiarEstadoPublicacion,
+  marcarVendida,
+  reabrirPublicacion,
   diasDeVida,
   usePublicacion,
 } from "@/lib/publicaciones";
@@ -210,6 +217,15 @@ export function DetallePublicacion({ id }: { id: string }) {
             Mara Comercio solo pone en contacto a las partes. Revisa lo que compras antes de
             pagar y reúnete en un lugar concurrido.
           </Aviso>
+
+          {/* Discreto y al pie: la inmensa mayoría de lo que se publica aquí
+              está bien, y una alarma roja en cada ficha enseña desconfianza en
+              vez de resolverla. */}
+          {!esMia ? (
+            <div className="flex justify-center">
+              <BotonReportar objetivo={reporteDePublicacion(publicacion)} />
+            </div>
+          ) : null}
         </div>
       </main>
     </>
@@ -310,12 +326,17 @@ function DatosPropios({ publicacion }: { publicacion: Publicacion }) {
   }
 
   if (publicacion.tipo === "negocio") {
+    const punto = publicacion.coordenadas;
     return (
-      <dl className="flex flex-col gap-3 rounded-card bg-surface-2 p-3.5 text-sm">
-        <Dato etiqueta="Rubro" valor={publicacion.categoria} />
-        <Dato etiqueta="Dirección" valor={publicacion.direccion} />
-        {publicacion.horario ? <Dato etiqueta="Horario" valor={publicacion.horario} /> : null}
-      </dl>
+      <div className="flex flex-col gap-2.5">
+        <dl className="flex flex-col gap-3 rounded-card bg-surface-2 p-3.5 text-sm">
+          <Dato etiqueta="Rubro" valor={publicacion.categoria} />
+          <Dato etiqueta="Dirección" valor={publicacion.direccion} />
+          {publicacion.horario ? <Dato etiqueta="Horario" valor={publicacion.horario} /> : null}
+        </dl>
+        {/* La dirección escrita le sirve a quien ya sabe dónde es. */}
+        {coordenadasValidas(punto) ? <BotonMapa punto={punto} /> : null}
+      </div>
     );
   }
 
@@ -329,15 +350,31 @@ function DatosPropios({ publicacion }: { publicacion: Publicacion }) {
     );
   }
 
-  if (publicacion.tipo === "mototaxi" && publicacion.cobertura.length > 0) {
+  if (publicacion.tipo === "mototaxi") {
+    const esTaxi = (publicacion.clase ?? "mototaxi") === "taxi";
     return (
-      <div className="rounded-card bg-surface-2 p-3.5">
-        <p className="mb-1.5 text-xs text-fg-subtle">Sectores que cubre</p>
-        <div className="flex flex-wrap gap-1.5">
-          {publicacion.cobertura.map((sector) => (
-            <Insignia key={sector}>{sector}</Insignia>
-          ))}
-        </div>
+      <div className="flex flex-col gap-2.5">
+        {publicacion.modelo || publicacion.placa ? (
+          <dl className="grid grid-cols-2 gap-3 rounded-card bg-surface-2 p-3.5 text-sm">
+            <Dato
+              etiqueta={esTaxi ? "Carro" : "Moto"}
+              valor={publicacion.modelo || "Sin indicar"}
+            />
+            {publicacion.placa ? (
+              <Dato etiqueta="Placa" valor={formatearPlaca(publicacion.placa)} />
+            ) : null}
+          </dl>
+        ) : null}
+        {publicacion.cobertura.length > 0 ? (
+          <div className="rounded-card bg-surface-2 p-3.5">
+            <p className="mb-1.5 text-xs text-fg-subtle">Sectores que cubre</p>
+            <div className="flex flex-wrap gap-1.5">
+              {publicacion.cobertura.map((sector) => (
+                <Insignia key={sector}>{sector}</Insignia>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -361,7 +398,13 @@ function Herramientas({ publicacion, dias }: { publicacion: Publicacion; dias: n
 
   async function cerrar() {
     setTrabajando(true);
-    await cambiarEstadoPublicacion(publicacion.id, "cerrada");
+    await marcarVendida(publicacion.id);
+    setTrabajando(false);
+  }
+
+  async function reabrir() {
+    setTrabajando(true);
+    await reabrirPublicacion(publicacion);
     setTrabajando(false);
   }
 
@@ -394,10 +437,20 @@ function Herramientas({ publicacion, dias }: { publicacion: Publicacion; dias: n
 
       <div className="flex gap-2">
         {publicacion.estado === "activa" ? (
-          <Boton variante="secundario" ancho cargando={trabajando} onClick={cerrar}>
-            Marcar como cerrada
+          <Boton
+            variante="secundario"
+            ancho
+            cargando={trabajando}
+            onClick={cerrar}
+            icono={<IconCheck size={17} />}
+          >
+            {publicacion.tipo === "negocio" ? "Cerrar la ficha" : "Ya lo vendí"}
           </Boton>
-        ) : null}
+        ) : (
+          <Boton variante="secundario" ancho cargando={trabajando} onClick={reabrir}>
+            Volver a publicarlo
+          </Boton>
+        )}
         <Boton
           variante="peligro"
           icono={<IconTrash size={17} />}

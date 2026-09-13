@@ -11,6 +11,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   limit as limitar,
@@ -36,6 +37,31 @@ import {
 } from "./types";
 
 const COLECCION = "publicaciones";
+
+/** Verdadero mientras la publicación siga pagada como destacada. */
+export function estaDestacada(publicacion: Publicacion, ahora = Date.now()): boolean {
+  return (publicacion.destacadaHasta ?? 0) > ahora;
+}
+
+/**
+ * El orden por defecto de todos los listados: lo destacado arriba y, dentro de
+ * cada grupo, lo más nuevo primero.
+ *
+ * Destacar se paga, así que tiene que notarse; pero solo reordena, no aparta a
+ * nadie. Quien no paga sigue apareciendo completo debajo, que es la diferencia
+ * entre un sitio con publicidad y uno donde ya no se puede vender gratis.
+ *
+ * Las páginas que ofrecen su propio orden —la mejor tasa en divisas, los
+ * disponibles primero en transporte— lo sobrescriben, y así debe ser: un
+ * destacado no puede convertir "mejor tasa" en una mentira.
+ */
+function ordenBase(a: Publicacion, b: Publicacion): number {
+  const ahora = Date.now();
+  return (
+    Number(estaDestacada(b, ahora)) - Number(estaDestacada(a, ahora)) ||
+    b.creadaEn - a.creadaEn
+  );
+}
 
 export interface OpcionesLista {
   tipo?: TipoPublicacion;
@@ -95,7 +121,7 @@ export function usePublicaciones(opciones: OpcionesLista = {}): ResultadoLista {
           clave,
           publicaciones: snapshot.docs
             .map((d) => ({ ...(d.data() as Publicacion), id: d.id }))
-            .sort((a, b) => b.creadaEn - a.creadaEn),
+            .sort(ordenBase),
           error: null,
         });
       },
@@ -356,6 +382,48 @@ export async function actualizarPublicacion(
   await updateDoc(doc(db(), COLECCION, id), campos);
 }
 
+/**
+ * "Ya lo vendí".
+ *
+ * Cerrar en vez de borrar. Un anuncio borrado no deja rastro de que sirvió
+ * para algo, y sin ese rastro no hay manera de saber cuánto se cierra de
+ * verdad aquí —que es la única cifra que dice si la plataforma funciona—.
+ * Además, su dueño puede reabrirlo si el trato se cae.
+ */
+export async function marcarVendida(id: string): Promise<void> {
+  const ahora = Date.now();
+  await updateDoc(doc(db(), COLECCION, id), {
+    estado: "cerrada",
+    cerradaEn: ahora,
+    actualizadaEn: ahora,
+  });
+}
+
+/** Devuelve a la venta un anuncio cerrado, si el trato no se dio. */
+export async function reabrirPublicacion(publicacion: Publicacion): Promise<void> {
+  const ahora = Date.now();
+  await updateDoc(doc(db(), COLECCION, publicacion.id), {
+    estado: "activa",
+    cerradaEn: deleteField(),
+    actualizadaEn: ahora,
+    // Reabrir un anuncio vencido sin devolverle vigencia lo dejaría cerrándose
+    // solo al instante siguiente.
+    ...(publicacion.tipo !== "negocio" && publicacion.venceEn <= ahora
+      ? { venceEn: ahora + DIAS_VIGENCIA * MS_POR_DIA }
+      : {}),
+  });
+}
+
+/**
+ * Destacar o dejar de destacar. Solo la administración: las reglas rechazan
+ * este campo si lo escribe el autor.
+ */
+export async function destacarPublicacion(id: string, dias: number): Promise<void> {
+  await updateDoc(doc(db(), COLECCION, id), {
+    destacadaHasta: dias > 0 ? Date.now() + dias * MS_POR_DIA : deleteField(),
+  });
+}
+
 export async function cambiarEstadoPublicacion(
   id: string,
   estado: Publicacion["estado"],
@@ -384,8 +452,12 @@ export function useFiltro(
     return publicaciones.filter((p) => {
       if (categoria && "categoria" in p && p.categoria !== categoria) return false;
       if (!busqueda) return true;
+      // La placa y el modelo entran en el pajar: quien busca un mototaxi por
+      // la placa que anotó suele tener una buena razón para hacerlo.
+      const vehiculo =
+        p.tipo === "mototaxi" ? `${p.modelo ?? ""} ${p.placa ?? ""}` : "";
       const heno = normalizarBusqueda(
-        `${p.titulo} ${p.descripcion} ${p.zona} ${p.autorNombre} ${p.autorApellido}`,
+        `${p.titulo} ${p.descripcion} ${p.zona} ${p.autorNombre} ${p.autorApellido} ${vehiculo}`,
       );
       return busqueda.split(/\s+/).every((palabra) => heno.includes(palabra));
     });

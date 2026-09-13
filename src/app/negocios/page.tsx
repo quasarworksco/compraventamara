@@ -11,10 +11,12 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { CabeceraSeccion, ChipsFiltro } from "@/components/cabecera-seccion";
+import { BotonMapa } from "@/components/boton-mapa";
 import { BotonWhatsApp } from "@/components/boton-whatsapp";
 import { IconClock, IconPin, IconPlus, IconStore } from "@/components/icons";
 import { Boton, Esqueleto, EstadoVacio, Insignia, SelloVerificado } from "@/components/ui";
 import { miniatura } from "@/lib/cloudinary";
+import { coordenadasValidas } from "@/lib/mapas";
 import { RUBROS_NEGOCIO } from "@/lib/pueblo";
 import { useFiltro, usePublicaciones } from "@/lib/publicaciones";
 import type { PublicacionNegocio } from "@/lib/types";
@@ -153,12 +155,23 @@ function TarjetaNegocio({ negocio }: { negocio: PublicacionNegocio }) {
           ) : null}
         </div>
 
-        <BotonWhatsApp
-          compacto
-          telefono={negocio.autorTelefono}
-          etiqueta={`Escribir a ${negocio.titulo}`}
-          mensaje={`Hola, los contacto por el directorio de Mara Comercio. Quisiera información sobre ${negocio.titulo}.`}
-        />
+        <div className="flex shrink-0 flex-col gap-1.5">
+          <BotonWhatsApp
+            compacto
+            telefono={negocio.autorTelefono}
+            etiqueta={`Escribir a ${negocio.titulo}`}
+            mensaje={`Hola, los contacto por el directorio de Mara Comercio. Quisiera información sobre ${negocio.titulo}.`}
+          />
+          {/* Solo aparece si el negocio marcó su punto: un botón que no lleva
+              a ningún sitio es peor que no tenerlo. */}
+          {coordenadasValidas(negocio.coordenadas) ? (
+            <BotonMapa
+              compacto
+              punto={negocio.coordenadas}
+              etiqueta={`Cómo llegar a ${negocio.titulo}`}
+            />
+          ) : null}
+        </div>
       </div>
 
       {negocio.descripcion ? (

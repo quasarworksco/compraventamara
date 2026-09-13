@@ -277,6 +277,139 @@ probar("Un mensaje no se reescribe", async () => {
   await assertFails(updateDoc(doc(beto, "salas", "general", "mensajes", id), { texto: "Otra cosa" }));
 });
 
+/* --- Publicaciones destacadas (se pagan, las concede la administración) --- */
+
+probar("Beto NO puede nacer destacado", () =>
+  assertFails(addDoc(collection(beto, "publicaciones"),
+    anuncioDe(perfilBeto, { destacadaHasta: Date.now() + 7 * 86400000 }))));
+
+probar("Beto NO puede destacarse editando su propio anuncio", async () => {
+  let id;
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "publicaciones"), anuncioDe(perfilBeto));
+    id = ref.id;
+  });
+  await assertFails(updateDoc(doc(beto, "publicaciones", id), {
+    destacadaHasta: Date.now() + 30 * 86400000, actualizadaEn: Date.now(),
+  }));
+});
+
+probar("Beto NO se cuela el destaque al prorrogar", async () => {
+  let id;
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "publicaciones"), anuncioDe(perfilBeto));
+    id = ref.id;
+  });
+  await assertFails(updateDoc(doc(beto, "publicaciones", id), {
+    venceEn: Date.now() + 30 * 86400000, prorrogas: 1,
+    destacadaHasta: Date.now() + 7 * 86400000,
+  }));
+});
+
+probar("Beto sí puede marcar vendido lo suyo", async () => {
+  let id;
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "publicaciones"), anuncioDe(perfilBeto));
+    id = ref.id;
+  });
+  await assertSucceeds(updateDoc(doc(beto, "publicaciones", id), {
+    estado: "cerrada", cerradaEn: Date.now(), actualizadaEn: Date.now(),
+  }));
+});
+
+probar("El dueño sí destaca un anuncio", async () => {
+  let id;
+  await entorno.withSecurityRulesDisabled(async (ctx) => {
+    const ref = await addDoc(collection(ctx.firestore(), "publicaciones"), anuncioDe(perfilBeto));
+    id = ref.id;
+  });
+  await assertSucceeds(updateDoc(doc(dueno, "publicaciones", id), {
+    destacadaHasta: Date.now() + 7 * 86400000,
+  }));
+});
+
+/* --- Reportes --- */
+
+/** Fija para todos los reportes: corregir uno no puede cambiarle la fecha. */
+const NACIDO = Date.now();
+
+const reporteDe = (quien, extra = {}) => ({
+  sobre: "publicacion", objetivoId: "pub-1", objetivoTitulo: "Moto Bera 150",
+  objetivoAutorUid: ANA, motivo: "estafa", detalle: "Cobró y no entregó.",
+  reportanteUid: quien.uid, reportanteCodigo: quien.codigo,
+  reportanteNombre: `${quien.nombre} ${quien.apellido}`,
+  creadoEn: NACIDO, estado: "abierto",
+  ...extra,
+});
+
+/** El identificador que exigen las reglas: uno por persona y cosa reportada. */
+const idReporte = (r) => `${r.sobre}_${r.objetivoId}__${r.reportanteUid}`;
+
+probar("Beto reporta un anuncio de Ana", () => {
+  const r = reporteDe(perfilBeto);
+  return assertSucceeds(setDoc(doc(beto, "reportes", idReporte(r)), r));
+});
+
+probar("Beto NO puede inventarse el identificador para repetir el reporte", () => {
+  const r = reporteDe(perfilBeto);
+  return assertFails(setDoc(doc(beto, "reportes", "otro-renglon-mas"), r));
+});
+
+probar("Beto NO puede reportar firmando como Ana", () => {
+  const r = reporteDe(perfilAna, { objetivoAutorUid: CARLA });
+  return assertFails(setDoc(doc(beto, "reportes", idReporte(r)), r));
+});
+
+probar("Nadie se reporta a sí mismo", () => {
+  const r = reporteDe(perfilBeto, { objetivoId: "pub-mia", objetivoAutorUid: BETO });
+  return assertFails(setDoc(doc(beto, "reportes", idReporte(r)), r));
+});
+
+// El agujero que encontraron estas pruebas: el aviso ya puesto se reescribía
+// para señalar a otro, conservando el identificador y el motivo.
+probar("Beto NO puede reapuntar su reporte contra otra persona", () => {
+  const r = reporteDe(perfilBeto, { objetivoAutorUid: CARLA });
+  return assertFails(setDoc(doc(beto, "reportes", idReporte(r)), r));
+});
+
+probar("Un reporte nace abierto, no resuelto", () => {
+  const r = reporteDe(perfilBeto, { objetivoId: "pub-9", estado: "resuelto" });
+  return assertFails(setDoc(doc(beto, "reportes", idReporte(r)), r));
+});
+
+probar("Beto NO puede leer los reportes", () => {
+  const r = reporteDe(perfilBeto);
+  return assertFails(getDoc(doc(beto, "reportes", idReporte(r))));
+});
+
+probar("Beto NO puede cerrar su propio reporte", () => {
+  const r = reporteDe(perfilBeto);
+  return assertFails(updateDoc(doc(beto, "reportes", idReporte(r)), { estado: "descartado" }));
+});
+
+probar("Beto NO puede borrar el reporte que puso", () => {
+  const r = reporteDe(perfilBeto);
+  return assertFails(deleteDoc(doc(beto, "reportes", idReporte(r))));
+});
+
+probar("Beto sí puede corregir el motivo mientras nadie lo atienda", () => {
+  const r = reporteDe(perfilBeto, { motivo: "repetido" });
+  return assertSucceeds(setDoc(doc(beto, "reportes", idReporte(r)), r));
+});
+
+probar("El dueño sí lee y resuelve los reportes", async () => {
+  const r = reporteDe(perfilBeto);
+  await assertSucceeds(getDoc(doc(dueno, "reportes", idReporte(r))));
+  await assertSucceeds(updateDoc(doc(dueno, "reportes", idReporte(r)), {
+    estado: "resuelto", resueltoEn: Date.now(), resueltoPor: "paulalejo123@gmail.com",
+  }));
+});
+
+probar("Un visitante sin cuenta NO puede reportar", () => {
+  const r = reporteDe(perfilBeto, { objetivoId: "pub-7" });
+  return assertFails(setDoc(doc(visitante, "reportes", idReporte(r)), r));
+});
+
 /* --- Tasas y visitantes --- */
 
 probar("Un visitante sin cuenta puede leer las publicaciones", () =>
