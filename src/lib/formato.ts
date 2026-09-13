@@ -1,6 +1,14 @@
 /** Utilidades de presentación compartidas por toda la aplicación. */
 
-import { DIVISAS, type Divisa, type Moneda, type MetodoPago, type TipoPublicacion } from "./types";
+import {
+  DIVISAS,
+  MOTIVOS_REPORTE,
+  type Divisa,
+  type Moneda,
+  type MetodoPago,
+  type MotivoReporte,
+  type TipoPublicacion,
+} from "./types";
 
 /** "dólares", "pesos colombianos", "euros". */
 export function nombreDivisa(divisa: Divisa): string {
@@ -107,10 +115,34 @@ export const ETIQUETA_METODO: Record<MetodoPago, string> = {
 export const ETIQUETA_TIPO: Record<TipoPublicacion, string> = {
   producto: "Artículo",
   negocio: "Negocio",
-  mototaxi: "Mototaxi",
+  mototaxi: "Transporte",
   divisa: "Divisas",
   rifa: "Rifa",
 };
+
+export const ETIQUETA_MOTIVO: Record<MotivoReporte, string> = Object.fromEntries(
+  MOTIVOS_REPORTE.map((m) => [m.id, m.etiqueta]),
+) as Record<MotivoReporte, string>;
+
+/**
+ * Placa en limpio: mayúsculas, sin guiones ni espacios.
+ *
+ * En Venezuela la misma placa se escribe "AB123CD", "AB-123-CD" o "ab 123 cd"
+ * según quien la copie. Guardadas así, dos fichas del mismo carro no parecen
+ * dos carros distintos, y buscar por placa encuentra.
+ */
+export function normalizarPlaca(entrada: string): string {
+  return entrada.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/** La placa como se lee en el vehículo: "AB123CD" → "AB123CD", separada en bloques. */
+export function formatearPlaca(placa: string): string {
+  const limpia = normalizarPlaca(placa);
+  // Formato venezolano corriente: tres bloques de letras y números.
+  const bloques = limpia.match(/^([A-Z]+)(\d+)([A-Z]*)$/);
+  if (!bloques) return limpia;
+  return [bloques[1], bloques[2], bloques[3]].filter(Boolean).join(" ");
+}
 
 /**
  * Cuánto se aparta una tasa de su referencia, en porcentaje.

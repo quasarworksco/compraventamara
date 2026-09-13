@@ -44,6 +44,11 @@ export interface Resumen {
     total: number;
     activas: number;
     vencidas: number;
+    /** Anuncios que su dueño cerró diciendo que ya lo vendió. */
+    cerradas: number;
+    cerradas30: number;
+    /** Cuántas van destacadas ahora mismo: lo que se está cobrando. */
+    destacadas: number;
     nuevas30: number;
     nuevas7: number;
     porTipo: Punto[];
@@ -183,6 +188,11 @@ export function calcularResumen(
       vencidas: publicaciones.filter(
         (p) => p.tipo !== "negocio" && p.venceEn <= ahora,
       ).length,
+      cerradas: publicaciones.filter((p) => p.estado === "cerrada").length,
+      cerradas30: publicaciones.filter(
+        (p) => p.estado === "cerrada" && (p.cerradaEn ?? 0) >= hace30,
+      ).length,
+      destacadas: publicaciones.filter((p) => (p.destacadaHasta ?? 0) > ahora).length,
       nuevas30: publicaciones.filter((p) => p.creadaEn >= hace30).length,
       nuevas7: publicaciones.filter((p) => p.creadaEn >= hace7).length,
       porTipo: ORDEN_TIPOS.map((tipo) => ({

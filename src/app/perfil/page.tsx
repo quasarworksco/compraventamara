@@ -13,7 +13,14 @@ import { useMemo, useState } from "react";
 
 import { BarraSuperior } from "@/components/barra-superior";
 import { EditarPerfil } from "@/components/editar-perfil";
-import { IconAlert, IconLogout, IconPlus, IconTag, IconVerified } from "@/components/icons";
+import {
+  IconAlert,
+  IconCheck,
+  IconLogout,
+  IconPlus,
+  IconTag,
+  IconVerified,
+} from "@/components/icons";
 import { TarjetaPublicacion } from "@/components/tarjeta-publicacion";
 import {
   Avatar,
@@ -29,7 +36,9 @@ import {
   diasDeVida,
   estaVencida,
   porVencer,
+  marcarVendida,
   prorrogarPublicacion,
+  reabrirPublicacion,
   usePublicaciones,
 } from "@/lib/publicaciones";
 import { DIAS_VIGENCIA, type Publicacion } from "@/lib/types";
@@ -178,7 +187,7 @@ export default function PaginaPerfil() {
           ) : (
             <div className="flex flex-col gap-2.5">
               {resto.map((publicacion, indice) => (
-                <TarjetaPublicacion
+                <MiPublicacion
                   key={publicacion.id}
                   publicacion={publicacion}
                   indice={indice}
@@ -249,6 +258,55 @@ function BloqueVerificacion({ pedida }: { pedida: boolean }) {
 }
 
 /** Tarjeta de aviso con el botón de prórroga. */
+/**
+ * Una publicación propia, con el atajo de cerrarla sin entrar a su ficha.
+ *
+ * Cerrar y no borrar: un anuncio borrado no deja rastro de que sirvió para
+ * algo, y ese rastro es la única manera de saber cuánto se cierra de verdad
+ * aquí. Además, si el trato se cae, vuelve con un toque.
+ */
+function MiPublicacion({
+  publicacion,
+  indice,
+}: {
+  publicacion: Publicacion;
+  indice: number;
+}) {
+  const [trabajando, setTrabajando] = useState(false);
+  const cerrada = publicacion.estado === "cerrada";
+  const esNegocio = publicacion.tipo === "negocio";
+
+  async function alternar() {
+    setTrabajando(true);
+    try {
+      if (cerrada) await reabrirPublicacion(publicacion);
+      else await marcarVendida(publicacion.id);
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <TarjetaPublicacion publicacion={publicacion} indice={indice} />
+      <Boton
+        variante="secundario"
+        ancho
+        cargando={trabajando}
+        onClick={alternar}
+        icono={cerrada ? undefined : <IconCheck size={16} />}
+        className="!min-h-10 !text-sm"
+      >
+        {cerrada
+          ? "Volver a publicarlo"
+          : esNegocio
+            ? "Cerrar la ficha"
+            : "Ya lo vendí"}
+      </Boton>
+    </div>
+  );
+}
+
 function AvisoVencimiento({ publicacion }: { publicacion: Publicacion }) {
   const [prorrogando, setProrrogando] = useState(false);
   const [listo, setListo] = useState(false);

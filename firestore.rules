@@ -187,6 +187,10 @@ service cloud.firestore {
         // Sin esto, una fecha de creación en el futuro dejaría el anuncio
         // clavado en el primer puesto de todos los listados para siempre.
         && marcaReciente(request.resource.data.creadaEn)
+        // Destacar se paga y lo concede la administración. Sin esta línea,
+        // cualquiera se pondría en el primer puesto de su sección escribiendo
+        // un campo más desde la consola del navegador.
+        && request.resource.data.get('destacadaHasta', 0) == 0
         && vigenciaRazonable();
 
       // El autor puede editar y prorrogar la suya. Nunca cambian quién firma,
@@ -203,6 +207,10 @@ service cloud.firestore {
             && request.resource.data.creadaEn == resource.data.creadaEn
             && (autorSinCambios() || autorCoincideConSuPerfil())
             && (resource.data.tipo != 'divisa' || miembroVerificado())
+            // Ni prorrogando, ni corrigiendo el precio, ni marcándolo vendido:
+            // el destaque solo se mueve desde la administración.
+            && request.resource.data.get('destacadaHasta', 0)
+                 == resource.data.get('destacadaHasta', 0)
             && vigenciaRazonable());
 
       allow delete: if esAdmin() || esMio(resource.data.autorUid);
@@ -232,6 +240,69 @@ service cloud.firestore {
       // Un mensaje no se edita: se borra. Así nadie reescribe lo que dijo.
       allow update: if false;
       allow delete: if esAdmin() || esMio(resource.data.autorUid);
+    }
+
+    /**
+     * Reportes de la comunidad.
+     *
+     * Los lee solo la administración, y es la decisión de diseño que hace que
+     * el sistema funcione: en un pueblo donde todos se conocen, un tablón
+     * público de "quién acusó a quién" no se usaría ni una vez. Quien reporta
+     * tiene que poder hacerlo sin quedar expuesto.
+     *
+     * El identificador del documento lo compone el cliente como
+     * objetivo_reportante, así que cada persona ocupa un solo renglón por
+     * cosa reportada: sin eso, un enfadado podría enterrar la cola con
+     * cincuenta avisos del mismo anuncio.
+     */
+    match /reportes/{id} {
+      allow read: if esAdmin();
+
+      allow create: if autenticado()
+        && request.resource.data.reportanteUid == request.auth.uid
+        // El identificador se comprueba aquí, y no solo se documenta: si el
+        // cliente pudiera inventárselo, un enfadado abriría cincuenta
+        // renglones del mismo anuncio y la cola dejaría de servir.
+        && id == request.resource.data.sobre + '_'
+               + request.resource.data.objetivoId + '__' + request.auth.uid
+        && request.resource.data.reportanteCodigo ==
+             get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.codigo
+        && request.resource.data.sobre in ['publicacion', 'miembro']
+        && request.resource.data.motivo in
+             ['estafa', 'no-existe', 'precio-enganoso', 'ofensivo', 'repetido', 'otro']
+        && request.resource.data.detalle is string
+        && request.resource.data.detalle.size() <= 1000
+        // Un reporte entra siempre abierto: quien avisa no cierra su propio
+        // aviso, y así la cola refleja lo que falta por mirar.
+        && request.resource.data.estado == 'abierto'
+        // Reportarse a uno mismo solo sirve para ensuciar la cola.
+        && request.resource.data.objetivoAutorUid != request.auth.uid
+        && marcaReciente(request.resource.data.creadoEn);
+
+      // Quien reportó puede corregir su motivo y su relato mientras nadie lo
+      // haya atendido; resolverlo o descartarlo es cosa de la administración.
+      //
+      // Lo reportado queda clavado. Sin fijarlo, un aviso ya puesto podía
+      // reescribirse para señalar a otra persona: el renglón seguía diciendo
+      // "estafa", el identificador seguía siendo el mismo, y el acusado pasaba
+      // a ser cualquiera. La administración habría actuado sobre eso.
+      allow update: if esAdmin()
+        || (esMio(resource.data.reportanteUid)
+            && resource.data.estado == 'abierto'
+            && request.resource.data.estado == 'abierto'
+            && request.resource.data.reportanteUid == resource.data.reportanteUid
+            && request.resource.data.sobre == resource.data.sobre
+            && request.resource.data.objetivoId == resource.data.objetivoId
+            && request.resource.data.objetivoAutorUid == resource.data.objetivoAutorUid
+            && request.resource.data.creadoEn == resource.data.creadoEn
+            && request.resource.data.motivo in
+                 ['estafa', 'no-existe', 'precio-enganoso', 'ofensivo', 'repetido', 'otro']
+            && request.resource.data.detalle is string
+            && request.resource.data.detalle.size() <= 1000);
+
+      // Un reporte no se borra ni por quien lo puso: si se pudiera retirar,
+      // bastaría una llamada incómoda para que desapareciera del panel.
+      allow delete: if esAdmin();
     }
 
     // Respaldo manual de las tasas del dólar, por si la fuente pública falla.
