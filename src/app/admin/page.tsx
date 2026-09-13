@@ -102,7 +102,7 @@ function Entrada({ configurado }: { configurado: boolean }) {
         await entrarComoAdmin(email, clave);
       }
     } catch (error) {
-      setFallo(mensajeError(error));
+      setFallo(mensajeError(error, "correo"));
     } finally {
       setEnviando(false);
     }
@@ -149,18 +149,22 @@ function Entrada({ configurado }: { configurado: boolean }) {
         </Boton>
       </form>
 
-      <button
+      {/* En un enlace de texto pasaba desapercibido, y es el paso que nadie
+          se salta sin quedarse trancado: la cuenta hay que crearla una vez. */}
+      <Boton
         type="button"
+        variante="secundario"
+        ancho
         onClick={() => {
           setCreando((v) => !v);
           setFallo(null);
+          setAviso(null);
         }}
-        className="text-center text-sm text-fg-muted underline"
       >
         {creando
           ? "Ya tengo cuenta, quiero entrar"
           : "Primera vez: crear la cuenta del correo dueño"}
-      </button>
+      </Boton>
 
       <p className="text-center text-xs text-fg-subtle">
         Esta puerta es solo para la administración. Los miembros entran con su

@@ -230,24 +230,45 @@ export function useSesion(): Sesion {
   return contexto;
 }
 
+/**
+ * Cómo se identifica quien está entrando.
+ *
+ * Existe porque hay dos puertas: el pueblo entra con su número de teléfono y
+ * la administración con su correo. Un mensaje que hable de "número" en la
+ * pantalla del panel, donde se pide un correo, deja a la persona buscando un
+ * campo que no existe.
+ */
+export type Identidad = "telefono" | "correo";
+
 /** Traduce los códigos de error de Firebase a algo que se entienda. */
-export function mensajeError(error: unknown): string {
+export function mensajeError(error: unknown, identidad: Identidad = "telefono"): string {
   const codigo = (error as { code?: string })?.code ?? "";
+  const esCorreo = identidad === "correo";
+  const cual = esCorreo ? "El correo" : "El número de teléfono";
+
   switch (codigo) {
     case "auth/email-already-in-use":
-      return "Ese número ya está registrado en Mara Comercio. Inicia sesión.";
+      return esCorreo
+        ? "Ese correo ya tiene una cuenta. Entra con tu contraseña."
+        : "Ese número ya está registrado en Mara Comercio. Inicia sesión.";
     case "auth/invalid-email":
-      return "El número de teléfono no es válido.";
+      return `${cual} no es válido.`;
     case "auth/weak-password":
       return "La contraseña debe tener al menos 6 caracteres.";
     case "auth/invalid-credential":
     case "auth/wrong-password":
     case "auth/user-not-found":
-      return "Número o contraseña incorrectos.";
+      // Firebase devuelve el mismo código tanto si la contraseña está mal como
+      // si la cuenta no existe, así que se nombran las dos posibilidades.
+      return esCorreo
+        ? "Correo o contraseña incorrectos. Si todavía no has creado esta cuenta, úsalo en «Primera vez» aquí abajo."
+        : "Número o contraseña incorrectos.";
     case "auth/too-many-requests":
       return "Demasiados intentos. Espera un momento y vuelve a probar.";
     case "auth/network-request-failed":
       return "Sin conexión. Revisa tus datos móviles o el wifi.";
+    case "auth/operation-not-allowed":
+      return "Falta activar el acceso con correo y contraseña en Firebase Authentication.";
     default:
       return error instanceof Error ? error.message : "Ocurrió un error inesperado.";
   }
