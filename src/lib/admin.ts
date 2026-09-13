@@ -50,16 +50,70 @@ export interface Administrador {
 
 export type NivelAdmin = "dueno" | "admin" | "ninguno";
 
-/** Qué puede hacer quien tiene la sesión abierta ahora mismo. */
+/**
+ * Traduce un fallo de Firestore a algo accionable.
+ *
+ * El caso que más se da tiene una causa concreta y una salida concreta, así
+ * que se nombran las dos en vez de dejar un "permiso denegado" a secas.
+ */
+export function mensajeAdmin(error: unknown): string {
+  const codigo = (error as { code?: string })?.code ?? "";
+  if (codigo === "permission-denied") {
+    return (
+      "Firestore rechazó el cambio. Suele ser una de dos: las reglas publicadas " +
+      "todavía nombran otro correo dueño, o tu sesión es anterior a que " +
+      "verificaras el correo. Sal y vuelve a entrar; si sigue igual, vuelve a " +
+      "publicar firestore.rules."
+    );
+  }
+  if (codigo === "unavailable") return "Sin conexión con Firestore. Revisa tu internet.";
+  return error instanceof Error ? error.message : "No se pudo guardar el cambio.";
+}
+
+/**
+ * Qué puede hacer quien tiene la sesión abierta ahora mismo.
+ *
+ * Lo primero que hace es pedir credenciales frescas, y no es un detalle: el
+ * token de identidad se acuña al iniciar sesión y lleva dentro
+ * `email_verified` tal como estaba en ese momento. Quien crea su cuenta, abre
+ * el enlace del correo y vuelve, sigue cargando un token que dice que no ha
+ * verificado nada —hasta una hora, que es lo que tarda en caducar—.
+ *
+ * Las reglas de Firestore leen ese token, no al cliente. Sin refrescarlo, el
+ * panel dejaba entrar al dueño y Firestore le rechazaba cada escritura sin
+ * que nada lo explicara.
+ */
 export function useNivelAdmin(usuario: User | null): { nivel: NivelAdmin; cargando: boolean } {
   const [estado, setEstado] = useState<{ clave: string; nivel: NivelAdmin }>({
     clave: "",
     nivel: "ninguno",
   });
+  /** Sube cuando llegan credenciales frescas, para volver a mirar el token. */
+  const [refresco, setRefresco] = useState(0);
 
   const clave = usuario?.uid ?? "";
 
-  // Ser el dueño se sabe con solo mirar el token: no hace falta ir a Firestore.
+  useEffect(() => {
+    if (!usuario) return;
+    let vivo = true;
+
+    (async () => {
+      try {
+        // reload() actualiza lo que ve el cliente; getIdToken(true) pide a
+        // Firebase un token nuevo, que es el que leerán las reglas.
+        await usuario.reload();
+        await usuario.getIdToken(true);
+      } catch {
+        // Sin conexión se sigue con lo que haya; se reintenta al recargar.
+      }
+      if (vivo) setRefresco((n) => n + 1);
+    })();
+
+    return () => {
+      vivo = false;
+    };
+  }, [usuario]);
+
   const correo = (usuario?.email ?? "").toLowerCase();
   const esDueno = Boolean(
     CORREO_DUENO && correo === CORREO_DUENO && usuario?.emailVerified,
@@ -72,7 +126,12 @@ export function useNivelAdmin(usuario: User | null): { nivel: NivelAdmin; cargan
       (snapshot) => setEstado({ clave, nivel: snapshot.exists() ? "admin" : "ninguno" }),
       () => setEstado({ clave, nivel: "ninguno" }),
     );
-  }, [clave, usuario, esDueno]);
+  }, [clave, usuario, esDueno, refresco]);
+
+  // Mientras el token siga siendo el de antes no se decide nada: hacerlo
+  // llevaría a un panel que se ve abierto y rechaza todo lo que se toca.
+  const credencialesFrescas = !usuario || refresco > 0;
+  if (!credencialesFrescas) return { nivel: "ninguno", cargando: true };
 
   if (esDueno) return { nivel: "dueno", cargando: false };
 

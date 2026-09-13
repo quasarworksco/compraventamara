@@ -31,6 +31,7 @@ import {
 } from "@/components/ui";
 import {
   cambiarVerificacion,
+  mensajeAdmin,
   nombrarAdministrador,
   quitarAdministrador,
   useAdministradores,
@@ -131,6 +132,22 @@ export function PanelAdmin({
 function SeccionMiembros() {
   const { miembros, cargando } = useMiembros(true);
   const [busqueda, setBusqueda] = useState("");
+  // Sin esto, una escritura rechazada no dejaba rastro en pantalla: el botón
+  // se pulsaba, la promesa se rompía en el vacío y todo seguía igual.
+  const [fallo, setFallo] = useState<string | null>(null);
+  const [trabajando, setTrabajando] = useState<string | null>(null);
+
+  async function alternarVerificacion(uid: string, verificado: boolean) {
+    setFallo(null);
+    setTrabajando(uid);
+    try {
+      await cambiarVerificacion(uid, verificado);
+    } catch (error) {
+      setFallo(mensajeAdmin(error));
+    } finally {
+      setTrabajando(null);
+    }
+  }
 
   const filtrados = miembros.filter((m) =>
     `${m.nombre} ${m.apellido} ${m.codigo} ${m.telefono}`
@@ -155,6 +172,8 @@ function SeccionMiembros() {
 
   return (
     <section className="flex flex-col gap-3">
+      {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+
       {pendientes > 0 ? (
         <Aviso>
           {pendientes === 1
@@ -206,9 +225,8 @@ function SeccionMiembros() {
           </div>
           <Boton
             variante={miembro.verificado ? "secundario" : "primario"}
-            onClick={() =>
-              cambiarVerificacion(miembro.uid, !miembro.verificado)
-            }
+            cargando={trabajando === miembro.uid}
+            onClick={() => alternarVerificacion(miembro.uid, !miembro.verificado)}
             icono={miembro.verificado ? undefined : <IconCheck size={16} />}
           >
             {miembro.verificado ? "Quitar" : "Verificar"}
