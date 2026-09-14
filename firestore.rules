@@ -38,13 +38,6 @@ service cloud.firestore {
     }
 
     /**
-     * Miembro verificado por la administración.
-     *
-     * Es la llave del tablón de divisas: publicar una oferta de dólares
-     * significa citar a un vecino para un intercambio de efectivo en mano,
-     * así que no basta con estar registrado.
-     */
-    /**
      * La foto de perfil de quien escribe sigue en pie.
      *
      * La foto es lo que permite reconocer a alguien al cerrar un trato en la
@@ -60,6 +53,13 @@ service cloud.firestore {
              .data.get('fotoRechazada', false) == false;
     }
 
+    /**
+     * Miembro verificado por la administración.
+     *
+     * Es la llave del tablón de divisas: publicar una oferta de dólares
+     * significa citar a un vecino para un intercambio de efectivo en mano,
+     * así que no basta con estar registrado.
+     */
     function miembroVerificado() {
       return autenticado()
         && exists(/databases/$(database)/documents/miembros/$(request.auth.uid))
@@ -206,7 +206,8 @@ service cloud.firestore {
                 && vence <= request.time.toMillis() + 2764800000));
     }
 
-    // Publicaciones: mercado, negocios, mototaxis, dólares y rifas.
+    // Publicaciones: mercado, negocios, transporte, divisas, rifas y las
+    // carreras que el pueblo pide.
     match /publicaciones/{id} {
       allow read: if true;
 
