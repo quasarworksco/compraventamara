@@ -3,12 +3,12 @@
 /**
  * Chat en vivo del pueblo.
  *
- * Los mensajes duran 36 horas y desaparecen. Es deliberado: el chat es para
+ * Los mensajes duran 24 horas y desaparecen. Es deliberado: el chat es para
  * lo que está pasando hoy —quién tiene gas, quién vende, quién va para
  * Maracaibo—, no un archivo permanente de conversaciones.
  *
  * El borrado tiene dos capas que se complementan:
- *  1. La consulta solo pide los mensajes de las últimas 36 horas, así que el
+ *  1. La consulta solo pide los mensajes de las últimas 24 horas, así que el
  *     chat se ve reiniciado en el mismo instante en que vencen.
  *  2. Una política TTL de Firestore sobre el campo `expiraEn` borra de verdad
  *     los documentos, sin necesidad de un servidor que haga limpieza.

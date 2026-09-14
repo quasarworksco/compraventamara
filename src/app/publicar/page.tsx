@@ -32,6 +32,7 @@ import {
   Selector,
 } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
+import { enlaceSeguro } from "@/lib/enlaces";
 import { mensajeFirestore } from "@/lib/errores";
 import {
   ETIQUETA_METODO,
@@ -267,7 +268,7 @@ function Formulario({
           categorias: [rubro, ...rubrosExtra.filter((r) => r !== rubro)],
           direccion: direccion.trim(),
           horario: horario.trim(),
-          enlace: enlace.trim() || undefined,
+          enlace: enlaceSeguro(enlace) ?? undefined,
           coordenadas,
           permanente: true,
         };
@@ -331,6 +332,9 @@ function Formulario({
     if (tipo === "negocio") {
       if (titulo.trim().length < 3) return "Escribe el nombre del negocio.";
       if (!direccion.trim()) return "Indica dónde queda el negocio.";
+      if (enlace.trim() && !enlaceSeguro(enlace)) {
+        return "Ese enlace no se entiende. Pega la dirección completa, empezando por https://";
+      }
     }
     if (tipo === "divisa") {
       if (!Number(tasa)) return "Indica a qué tasa operas.";

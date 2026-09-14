@@ -117,6 +117,71 @@ service cloud.firestore {
         && nuevo.get('autorSeguro', false) == viejo.get('autorSeguro', false);
     }
 
+    /**
+     * Una imagen de la plataforma, y no de cualquier sitio de internet.
+     *
+     * Todas las fotos se suben a esta cuenta de Cloudinary, así que una URL que
+     * apunte a otro lado no puede venir de la aplicación: viene de alguien
+     * escribiendo directo contra la base. Y eso importa más de lo que parece,
+     * porque una imagen alojada fuera la controla otro: se aprueba una foto de
+     * perfil y al día siguiente esa misma dirección sirve otra cosa. También
+     * evita que un perfil se convierta en un píxel de rastreo que registre a
+     * todo el que abra el directorio.
+     */
+    function imagenPropia(valor) {
+      return valor is string
+        && valor.size() <= 500
+        && valor.matches('https://res[.]cloudinary[.]com/bzrjdfnu/.*');
+    }
+
+    /**
+     * Las fotos de una publicación.
+     *
+     * Se comprueban una a una porque el lenguaje de reglas no sabe recorrer
+     * listas. Es repetitivo y se ve, pero el tope son cinco fotos —el mismo que
+     * pone el formulario— así que la lista de comprobaciones es corta y acaba.
+     */
+    function imagenesPropias() {
+      let fotos = request.resource.data.get('imagenes', []);
+      return fotos is list
+        && fotos.size() <= 5
+        && (fotos.size() < 1 || imagenPropia(fotos[0]))
+        && (fotos.size() < 2 || imagenPropia(fotos[1]))
+        && (fotos.size() < 3 || imagenPropia(fotos[2]))
+        && (fotos.size() < 4 || imagenPropia(fotos[3]))
+        && (fotos.size() < 5 || imagenPropia(fotos[4]));
+    }
+
+    /** Una cadena que existe y no se pasa de larga. */
+    function acotada(valor, maximo) {
+      return valor is string && valor.size() <= maximo;
+    }
+
+    /**
+     * Los textos libres de una publicación, con tope.
+     *
+     * Sin esto, una sola publicación con una descripción de medio megabyte
+     * encarece cada lectura de la sección entera para todo el pueblo. El
+     * formulario ya los limita, pero el formulario no es la frontera.
+     */
+    function textosAcotados() {
+      let d = request.resource.data;
+      return acotada(d.get('descripcion', ''), 2000)
+        && acotada(d.get('zona', ''), 80)
+        && acotada(d.get('categoria', ''), 120)
+        && acotada(d.get('direccion', ''), 300)
+        && acotada(d.get('horario', ''), 200)
+        && acotada(d.get('enlace', ''), 500)
+        && acotada(d.get('modelo', ''), 80)
+        && acotada(d.get('placa', ''), 12)
+        && acotada(d.get('premio', ''), 200)
+        && acotada(d.get('loteria', ''), 80)
+        && acotada(d.get('origen', ''), 120)
+        && acotada(d.get('destino', ''), 120)
+        && d.get('categorias', []) is list
+        && d.get('categorias', []).size() <= 12;
+    }
+
     /** Marca de tiempo en milisegundos que de verdad corresponde a ahora. */
     function marcaReciente(valor) {
       return valor is int
@@ -147,8 +212,11 @@ service cloud.firestore {
         && request.resource.data.uid == uid
         && request.resource.data.rol == 'miembro'
         && request.resource.data.verificado == false
-        && request.resource.data.fotoUrl is string
-        && request.resource.data.fotoUrl.size() > 0;
+        && imagenPropia(request.resource.data.fotoUrl)
+        && acotada(request.resource.data.nombre, 60)
+        && acotada(request.resource.data.apellido, 60)
+        && acotada(request.resource.data.telefono, 20)
+        && acotada(request.resource.data.get('zona', ''), 80);
 
       // Cada quien edita su ficha, pero nadie se asciende, se autoverifica,
       // se nombra Vendedor Seguro ni se cambia el código. Pedir la
@@ -163,11 +231,14 @@ service cloud.firestore {
             // La foto rechazada solo se apaga subiendo otra distinta. Sin esta
             // condición, la pausa se levantaría borrando un campo desde la
             // consola y la foto falsa seguiría ahí.
+            && imagenPropia(request.resource.data.fotoUrl)
+            && acotada(request.resource.data.nombre, 60)
+            && acotada(request.resource.data.apellido, 60)
+            && acotada(request.resource.data.telefono, 20)
+            && acotada(request.resource.data.get('zona', ''), 80)
             && (request.resource.data.get('fotoRechazada', false)
                   == resource.data.get('fotoRechazada', false)
                 || (request.resource.data.get('fotoRechazada', false) == false
-                    && request.resource.data.fotoUrl is string
-                    && request.resource.data.fotoUrl.size() > 0
                     && request.resource.data.fotoUrl != resource.data.fotoUrl))
             // La advertencia la pone y la quita la administración.
             && request.resource.data.get('advertencia', '')
@@ -224,6 +295,8 @@ service cloud.firestore {
         && request.resource.data.titulo is string
         && request.resource.data.titulo.size() > 0
         && request.resource.data.titulo.size() <= 200
+        && imagenesPropias()
+        && textosAcotados()
         && request.resource.data.tipo in
              ['producto', 'negocio', 'mototaxi', 'divisa', 'rifa', 'carrera']
         && (request.resource.data.tipo != 'divisa' || miembroVerificado())
@@ -249,6 +322,9 @@ service cloud.firestore {
             && request.resource.data.tipo == resource.data.tipo
             && request.resource.data.creadaEn == resource.data.creadaEn
             && (autorSinCambios() || autorCoincideConSuPerfil())
+            && acotada(request.resource.data.titulo, 200)
+            && imagenesPropias()
+            && textosAcotados()
             && (resource.data.tipo != 'divisa' || miembroVerificado())
             // Ni prorrogando, ni corrigiendo el precio, ni marcándolo vendido:
             // el destaque solo se mueve desde la administración.
@@ -259,7 +335,7 @@ service cloud.firestore {
       allow delete: if esAdmin() || esMio(resource.data.autorUid);
     }
 
-    // Chat en vivo. Los mensajes se borran solos a las 36 horas mediante la
+    // Chat en vivo. Los mensajes se borran solos a las 24 horas mediante la
     // política TTL sobre el campo `expiraEn`; aquí solo se controla quién
     // puede escribir y que nadie firme con el nombre de otro.
     match /salas/{sala}/mensajes/{id} {
@@ -275,11 +351,15 @@ service cloud.firestore {
              get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.nombre
         && request.resource.data.texto is string
         && request.resource.data.texto.size() <= 1000
+        // Si adjunta imagen, tiene que ser una subida aquí.
+        && (!('imagenUrl' in request.resource.data)
+            || imagenPropia(request.resource.data.imagenUrl))
         // Una fecha futura dejaría el mensaje fijo al final de la sala, y un
-        // vencimiento lejano lo salvaría del borrado a las 36 horas.
+        // vencimiento lejano lo salvaría del borrado a las 24 horas. Se deja
+        // una hora de holgura para no rechazar a quien tenga el reloj corrido.
         && marcaReciente(request.resource.data.creadoEn)
         && request.resource.data.expiraEn is timestamp
-        && request.resource.data.expiraEn < request.time + duration.value(37, 'h');
+        && request.resource.data.expiraEn < request.time + duration.value(25, 'h');
 
       // Un mensaje no se edita: se borra. Así nadie reescribe lo que dijo.
       allow update: if false;

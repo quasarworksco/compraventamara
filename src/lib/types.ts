@@ -7,7 +7,7 @@
  *   contadores/miembros          correlativo para el identificador MC-00000
  *   configuracion/tasas          respaldo manual del precio del dólar
  *   publicaciones/{id}           mercado, negocios, mototaxis, divisas y rifas
- *   salas/{sala}/mensajes/{id}   chat en vivo del pueblo (se borra cada 36 h)
+ *   salas/{sala}/mensajes/{id}   chat en vivo del pueblo (se borra cada 24 h)
  *
  * No hay conversaciones privadas dentro de la plataforma: el trato se cierra
  * por WhatsApp, que es donde el pueblo ya conversa.
@@ -441,7 +441,7 @@ export interface Mensaje {
   creadoEn: number;
   /**
    * El documento guarda además `expiraEn` como Timestamp de Firestore
-   * (creadoEn + 36 h), que es lo que lee la política TTL para borrarlo.
+   * (creadoEn + 24 h), que es lo que lee la política TTL para borrarlo.
    * No se declara aquí porque la interfaz nunca lo lee: para saber si un
    * mensaje sigue vigente basta con `creadoEn`.
    */

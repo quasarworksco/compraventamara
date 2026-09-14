@@ -11,7 +11,7 @@
 import type { SalaId } from "./types";
 
 /** Lo que vive un mensaje antes de esfumarse. */
-export const HORAS_DE_VIDA = 36;
+export const HORAS_DE_VIDA = 24;
 
 export const MS_DE_VIDA = HORAS_DE_VIDA * 60 * 60 * 1000;
 

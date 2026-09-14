@@ -154,18 +154,41 @@ export function useTasas(): { tasas: Tasas; cargando: boolean } {
         return;
       }
 
+      /*
+       * Las fuentes se combinan en vez de tomar la primera que conteste algo.
+       *
+       * Antes se aceptaba la primera respuesta que trajera cualquiera de las
+       * dos cifras y se dejaba de preguntar. Eso hacía que si la primera fuente
+       * cambiaba el nombre de un campo —y la del BCV es justo el que cambia—,
+       * la portada se quedaba con el paralelo y sin la tasa oficial, teniendo
+       * la segunda fuente la cifra buena a un paso. Ahora cada hueco se
+       * rellena con la primera fuente que lo tenga.
+       */
+      let bcv: number | null = null;
+      let binance: number | null = null;
+
       for (const fuente of FUENTES) {
+        if (bcv !== null && binance !== null) break;
         try {
           const lectura = await fuente(control.signal);
-          if (lectura && (lectura.bcv !== null || lectura.binance !== null)) {
-            const resultado: Tasas = { ...lectura, actualizadoEn: Date.now(), origen: "api" };
-            guardarCache(resultado);
-            if (vigente) setTasas(resultado);
-            return;
-          }
+          if (!lectura) continue;
+          bcv = bcv ?? lectura.bcv;
+          binance = binance ?? lectura.binance;
         } catch {
           // CORS, la fuente caída o la red del visitante: se prueba la siguiente.
         }
+      }
+
+      if (bcv !== null || binance !== null) {
+        const resultado: Tasas = {
+          bcv,
+          binance,
+          actualizadoEn: Date.now(),
+          origen: "api",
+        };
+        guardarCache(resultado);
+        if (vigente) setTasas(resultado);
+        return;
       }
 
       const respaldo = await leerRespaldo();
@@ -181,6 +204,44 @@ export function useTasas(): { tasas: Tasas; cargando: boolean } {
   }, [ronda]);
 
   return { tasas, cargando };
+}
+
+/**
+ * Pregunta a cada fuente por separado y cuenta qué contestó.
+ *
+ * Existe porque desde fuera no hay manera de saber si una fuente pública dejó
+ * de responder, cambió el nombre de un campo o bloqueó al navegador por CORS:
+ * lo único que se ve es una portada sin cifra. Con esto, quien administra lo
+ * comprueba desde su teléfono en un toque y sabe si tiene que cargar la tasa a
+ * mano o si el problema es otro.
+ */
+export async function probarFuentes(): Promise<
+  { nombre: string; bcv: number | null; binance: number | null; fallo?: string }[]
+> {
+  const control = new AbortController();
+  const nombres = ["ve.dolarapi.com", "pydolarve.org"];
+
+  return Promise.all(
+    FUENTES.map(async (fuente, indice) => {
+      try {
+        const lectura = await fuente(control.signal);
+        if (!lectura) {
+          return { nombre: nombres[indice], bcv: null, binance: null, fallo: "Respondió vacío." };
+        }
+        return { nombre: nombres[indice], ...lectura };
+      } catch (error) {
+        return {
+          nombre: nombres[indice],
+          bcv: null,
+          binance: null,
+          fallo:
+            error instanceof Error
+              ? error.message
+              : "No se pudo conectar (puede ser CORS o la fuente caída).",
+        };
+      }
+    }),
+  );
 }
 
 /** Respaldo manual: lo usa un administrador cuando las fuentes fallan. */

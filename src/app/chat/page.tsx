@@ -10,7 +10,7 @@
  * de escritura anclado abajo.
  *
  * La única diferencia con WhatsApp, y conviene que se note: aquí los mensajes
- * se borran solos a las 36 horas.
+ * se borran solos a las 24 horas.
  */
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";

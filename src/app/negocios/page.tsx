@@ -16,6 +16,7 @@ import { BotonWhatsApp } from "@/components/boton-whatsapp";
 import { IconClock, IconPin, IconPlus, IconStore } from "@/components/icons";
 import { Boton, Esqueleto, EstadoVacio, Insignia, SelloVerificado } from "@/components/ui";
 import { miniatura } from "@/lib/cloudinary";
+import { enlaceSeguro } from "@/lib/enlaces";
 import { coordenadasValidas } from "@/lib/mapas";
 import { RUBROS_NEGOCIO } from "@/lib/pueblo";
 import { useFiltro, usePublicaciones } from "@/lib/publicaciones";
@@ -239,9 +240,11 @@ function TarjetaNegocio({ negocio }: { negocio: PublicacionNegocio }) {
           <IconPin size={12} />
           {negocio.zona}
         </Insignia>
-        {negocio.enlace ? (
+        {/* El enlace lo escribe quien registra el negocio, así que se comprueba
+            antes de pintarlo como href: solo http y https. */}
+        {enlaceSeguro(negocio.enlace) ? (
           <a
-            href={negocio.enlace}
+            href={enlaceSeguro(negocio.enlace) ?? undefined}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs font-semibold text-brand-600 underline dark:text-brand-300"

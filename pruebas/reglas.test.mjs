@@ -29,19 +29,19 @@ const DUENO = "uid-dueno";
 
 const perfilAna = {
   uid: ANA, codigo: "MC-00001", nombre: "Ana", apellido: "Perozo",
-  telefono: "584121234567", fotoUrl: "https://res.cloudinary.com/x/ana.jpg",
+  telefono: "584121234567", fotoUrl: "https://res.cloudinary.com/bzrjdfnu/ana.jpg",
   verificado: true, rol: "miembro", creadoEn: Date.now(),
 };
 const perfilBeto = {
   uid: BETO, codigo: "MC-00002", nombre: "Beto", apellido: "Uzcátegui",
-  telefono: "584129999999", fotoUrl: "https://res.cloudinary.com/x/beto.jpg",
+  telefono: "584129999999", fotoUrl: "https://res.cloudinary.com/bzrjdfnu/beto.jpg",
   verificado: false, rol: "miembro", creadoEn: Date.now(),
 };
 // Carla es Vendedora Segura: verificada y, además, avalada por la
 // administración. Su distintivo es el que ordena el tablón de divisas.
 const perfilCarla = {
   uid: CARLA, codigo: "MC-00003", nombre: "Carla", apellido: "Fuenmayor",
-  telefono: "584141111111", fotoUrl: "https://res.cloudinary.com/x/carla.jpg",
+  telefono: "584141111111", fotoUrl: "https://res.cloudinary.com/bzrjdfnu/carla.jpg",
   verificado: true, vendedorSeguro: true, seguroDesde: Date.now(),
   rol: "miembro", creadoEn: Date.now(),
 };
@@ -245,7 +245,7 @@ const mensajeDe = (perfil, extra = {}) => ({
   texto: "Buenas, ¿quién tiene gas?",
   autorUid: perfil.uid, autorCodigo: perfil.codigo, autorNombre: perfil.nombre,
   autorFoto: perfil.fotoUrl,
-  creadoEn: Date.now(), expiraEn: new Date(Date.now() + 36 * 3600000),
+  creadoEn: Date.now(), expiraEn: new Date(Date.now() + 24 * 3600000),
   ...extra,
 });
 
@@ -260,9 +260,16 @@ probar("Nadie deja un mensaje fijo con fecha futura", () =>
   assertFails(addDoc(collection(beto, "salas", "general", "mensajes"),
     mensajeDe(perfilBeto, { creadoEn: Date.now() + 400 * 86400000 }))));
 
-probar("Nadie salva su mensaje del borrado a las 36 horas", () =>
+probar("Nadie salva su mensaje del borrado a las 24 horas", () =>
   assertFails(addDoc(collection(beto, "salas", "general", "mensajes"),
     mensajeDe(perfilBeto, { expiraEn: new Date(Date.now() + 365 * 86400000) }))));
+
+// El chat bajó de 36 a 24 horas: un mensaje con el vencimiento viejo ya no
+// entra, que es lo que confirma que el cambio llegó a las reglas y no solo
+// al código de la página.
+probar("Ni con el vencimiento de 36 horas de antes", () =>
+  assertFails(addDoc(collection(beto, "salas", "general", "mensajes"),
+    mensajeDe(perfilBeto, { expiraEn: new Date(Date.now() + 36 * 3600000) }))));
 
 probar("No se pueden inventar salas fuera de la general", () =>
   assertFails(addDoc(collection(beto, "salas", "inventada", "mensajes"), mensajeDe(perfilBeto))));
@@ -416,7 +423,7 @@ probar("Un visitante sin cuenta NO puede reportar", () => {
 const DINA = "uid-dina";
 const perfilDina = {
   uid: DINA, codigo: "MC-00004", nombre: "Dina", apellido: "Chirinos",
-  telefono: "584249999999", fotoUrl: "https://res.cloudinary.com/x/no-es-ella.jpg",
+  telefono: "584249999999", fotoUrl: "https://res.cloudinary.com/bzrjdfnu/no-es-ella.jpg",
   verificado: true, fotoRechazada: true,
   advertencia: "Tu foto de perfil no muestra tu cara.",
   rol: "miembro", creadoEn: Date.now(),
@@ -440,12 +447,12 @@ probar("Dina NO se quita la advertencia que le dejó la administración", () =>
 
 probar("Dina sí se reactiva subiendo una foto distinta", () =>
   assertSucceeds(updateDoc(doc(dina, "miembros", DINA), {
-    fotoUrl: "https://res.cloudinary.com/x/dina-de-verdad.jpg", fotoRechazada: false,
+    fotoUrl: "https://res.cloudinary.com/bzrjdfnu/dina-de-verdad.jpg", fotoRechazada: false,
   })));
 
 probar("Y entonces sí publica", () =>
   assertSucceeds(addDoc(collection(dina, "publicaciones"), anuncioDe({
-    ...perfilDina, fotoUrl: "https://res.cloudinary.com/x/dina-de-verdad.jpg",
+    ...perfilDina, fotoUrl: "https://res.cloudinary.com/bzrjdfnu/dina-de-verdad.jpg",
   }))));
 
 probar("El dueño sí pone una cuenta en pausa", () =>
@@ -516,6 +523,65 @@ probar("Una rifa que sortea dentro de diez meses", () =>
 probar("Pero no una rifa a cinco años vista", () =>
   assertFails(addDoc(collection(ana, "publicaciones"), rifaDe(perfilAna, 1825))));
 
+/* --- Imágenes: solo de la cuenta del proyecto --- */
+
+// A esta altura del archivo el dueño ya verificó a Beto, así que sus anuncios
+// tienen que llevar el sello puesto: las reglas contrastan la copia contra el
+// perfil real, y el objeto de arriba se quedó como estaba al principio.
+const betoYaVerificado = { ...perfilBeto, verificado: true };
+
+probar("Beto NO puede poner una foto de perfil alojada fuera", () =>
+  assertFails(updateDoc(doc(beto, "miembros", BETO), {
+    fotoUrl: "https://sitio-de-otro.com/pixel.png",
+  })));
+
+probar("Beto NO puede colar una imagen de fuera en un anuncio", () =>
+  assertFails(addDoc(collection(beto, "publicaciones"),
+    anuncioDe(perfilBeto, { imagenes: ["https://sitio-de-otro.com/carnada.jpg"] }))));
+
+probar("Beto NO puede colarla como segunda foto", () =>
+  assertFails(addDoc(collection(beto, "publicaciones"), anuncioDe(perfilBeto, {
+    imagenes: [
+      "https://res.cloudinary.com/bzrjdfnu/moto.jpg",
+      "https://sitio-de-otro.com/carnada.jpg",
+    ],
+  }))));
+
+probar("Beto sí publica con fotos subidas aquí", () =>
+  assertSucceeds(addDoc(collection(beto, "publicaciones"), anuncioDe(betoYaVerificado, {
+    imagenes: [
+      "https://res.cloudinary.com/bzrjdfnu/moto1.jpg",
+      "https://res.cloudinary.com/bzrjdfnu/moto2.jpg",
+    ],
+  }))));
+
+probar("Nadie sube más de cinco fotos", () =>
+  assertFails(addDoc(collection(beto, "publicaciones"), anuncioDe(perfilBeto, {
+    imagenes: Array.from({ length: 9 },
+      (_, i) => `https://res.cloudinary.com/bzrjdfnu/foto${i}.jpg`),
+  }))));
+
+probar("Beto NO puede adjuntar una imagen de fuera en el chat", () =>
+  assertFails(addDoc(collection(beto, "salas", "general", "mensajes"),
+    mensajeDe(perfilBeto, { imagenUrl: "https://sitio-de-otro.com/pixel.png" }))));
+
+/* --- Textos con tope --- */
+
+probar("Nadie infla la base con media novela de descripción", () =>
+  assertFails(addDoc(collection(beto, "publicaciones"),
+    anuncioDe(perfilBeto, { descripcion: "a".repeat(5000) }))));
+
+probar("Una descripción normal sí entra", () =>
+  assertSucceeds(addDoc(collection(beto, "publicaciones"),
+    anuncioDe(betoYaVerificado, { descripcion: "Moto en buen estado, papeles al día." }))));
+
+probar("Ni un sector de mil caracteres", () =>
+  assertFails(addDoc(collection(beto, "publicaciones"),
+    anuncioDe(perfilBeto, { zona: "z".repeat(1000) }))));
+
+probar("Ni un nombre de perfil de mil caracteres", () =>
+  assertFails(updateDoc(doc(beto, "miembros", BETO), { nombre: "n".repeat(1000) })));
+
 /* --- Tasas y visitantes --- */
 
 probar("Un visitante sin cuenta puede leer las publicaciones", () =>
@@ -531,6 +597,21 @@ probar("El dueño sí carga la tasa de respaldo", () =>
   assertSucceeds(setDoc(doc(dueno, "configuracion", "tasas"), {
     bcv: 40, binance: 45, actualizadoEn: Date.now(),
   })));
+
+probar("Beto NO puede publicar el parte de gasolina", () =>
+  assertFails(setDoc(doc(beto, "configuracion", "estaciones"), {
+    estaciones: [{ nombre: "MARA VIEJA", combustibles: ["gasolina"] }],
+    actualizadoEn: Date.now(),
+  })));
+
+probar("El dueño sí publica el parte de gasolina", () =>
+  assertSucceeds(setDoc(doc(dueno, "configuracion", "estaciones"), {
+    estaciones: [{ nombre: "MARA VIEJA", combustibles: ["gasolina", "diesel"] }],
+    actualizadoEn: Date.now(), horaDelParte: "1:12 PM",
+  })));
+
+probar("Y el pueblo sí puede leerlo sin cuenta", () =>
+  assertSucceeds(getDoc(doc(visitante, "configuracion", "estaciones"))));
 
 probar("Una colección no contemplada queda cerrada", () =>
   assertFails(setDoc(doc(beto, "loquesea", "x"), { a: 1 })));

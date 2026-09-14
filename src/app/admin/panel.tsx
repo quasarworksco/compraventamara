@@ -28,6 +28,7 @@ import {
   IconGrafico,
   IconLogout,
   IconSearch,
+  IconSurtidor,
   IconTag,
   IconTrash,
   IconUser,
@@ -61,6 +62,15 @@ import {
   type NivelAdmin,
 } from "@/lib/admin";
 import { DIAS_TENDENCIA, calcularResumen } from "@/lib/estadisticas";
+import {
+  HORAS_VIGENCIA_ESTACIONES,
+  borrarParte,
+  guardarParte,
+  leerParte,
+  parteVigente,
+  useEstaciones,
+  type Estacion,
+} from "@/lib/estaciones";
 import { exportarMiembros, exportarPublicaciones } from "@/lib/exportar";
 import {
   reabrirReporte,
@@ -84,7 +94,7 @@ import {
   estaVigente,
 } from "@/lib/publicaciones";
 import { useAhora } from "@/lib/reloj";
-import { guardarTasasManuales, useTasas } from "@/lib/tasas";
+import { guardarTasasManuales, probarFuentes, useTasas } from "@/lib/tasas";
 import type { Miembro, Publicacion, Reporte, TipoPublicacion } from "@/lib/types";
 
 type Pestana =
@@ -92,6 +102,7 @@ type Pestana =
   | "reportes"
   | "miembros"
   | "publicaciones"
+  | "estaciones"
   | "tasas"
   | "administradores";
 
@@ -120,6 +131,7 @@ export function PanelAdmin({
     },
     { id: "miembros", etiqueta: "Miembros", Icono: IconUser },
     { id: "publicaciones", etiqueta: "Publicaciones", Icono: IconTag },
+    { id: "estaciones", etiqueta: "Gasolina", Icono: IconSurtidor },
     { id: "tasas", etiqueta: "Tasas", Icono: IconDollar },
     ...(esDueno
       ? [{ id: "administradores" as const, etiqueta: "Admins", Icono: IconVerified }]
@@ -179,6 +191,7 @@ export function PanelAdmin({
         ) : null}
         {pestana === "miembros" ? <SeccionMiembros /> : null}
         {pestana === "publicaciones" ? <SeccionPublicaciones /> : null}
+        {pestana === "estaciones" ? <SeccionEstaciones /> : null}
         {pestana === "tasas" ? <SeccionTasas /> : null}
         {pestana === "administradores" && esDueno ? (
           <SeccionAdministradores correoDueno={usuario.email ?? ""} />
@@ -1352,6 +1365,168 @@ function Chip({
   );
 }
 
+
+/* ----------------------------------------------------------------- */
+/* Estaciones de servicio                                             */
+/* ----------------------------------------------------------------- */
+
+/**
+ * El parte diario de gasolina.
+ *
+ * No se pide una ficha por estación: el parte llega cada día por WhatsApp
+ * escrito a mano, y quien lo carga lo tiene en el portapapeles. Se pega tal
+ * como llegó, se ve lo que se entendió antes de guardar, y ya. Siete
+ * formularios para un mensaje que ya existe es la clase de trabajo que hace
+ * que un día nadie lo cargue.
+ *
+ * Los emojis del mensaje se descartan al interpretarlo: la interfaz pone sus
+ * propios iconos.
+ */
+function SeccionEstaciones() {
+  const { parte } = useEstaciones();
+  const ahora = useAhora(60_000);
+
+  const [texto, setTexto] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+  const [hecho, setHecho] = useState<string | null>(null);
+
+  // Se interpreta al vuelo mientras se escribe: así lo que se ve abajo es
+  // exactamente lo que se va a guardar, y no hay que publicar para descubrir
+  // que una línea no se entendió.
+  const leido = useMemo(() => leerParte(texto), [texto]);
+  const vigente = parteVigente(parte, ahora);
+
+  async function publicar() {
+    setGuardando(true);
+    setFallo(null);
+    setHecho(null);
+    try {
+      await guardarParte(leido.estaciones, leido.hora);
+      setTexto("");
+      setHecho("Parte publicado. Ya se ve en la portada.");
+    } catch (error) {
+      setFallo(mensajeFirestore(error, "moderar"));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function retirar() {
+    if (!window.confirm("¿Retirar el parte de la portada?")) return;
+    setGuardando(true);
+    setFallo(null);
+    try {
+      await borrarParte();
+      setHecho("Parte retirado.");
+    } catch (error) {
+      setFallo(mensajeFirestore(error, "moderar"));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-4">
+      <Aviso>
+        Pega el mensaje de WhatsApp tal como te llega, con emojis y todo. Se retira solo a
+        las {HORAS_VIGENCIA_ESTACIONES} horas: un parte de gasolina de ayer manda a alguien
+        a cruzar el municipio en reserva para encontrar la bomba cerrada.
+      </Aviso>
+
+      {/* Lo que el pueblo está viendo ahora mismo. */}
+      <div className="rounded-card border border-line bg-surface p-3.5 shadow-card">
+        <p className="text-sm font-semibold text-fg">En la portada ahora</p>
+        {vigente ? (
+          <>
+            <p className="mt-0.5 text-xs text-fg-subtle">
+              {parte.estaciones.length}{" "}
+              {parte.estaciones.length === 1 ? "estación" : "estaciones"} ·{" "}
+              {parte.horaDelParte ? `parte de las ${parte.horaDelParte} · ` : ""}
+              cargado {hace(parte.actualizadoEn)}
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-1.5">
+              {parte.estaciones.map((e, i) => (
+                <li key={`${e.nombre}-${i}`}>
+                  <Insignia tono="verde">{e.nombre}</Insignia>
+                </li>
+              ))}
+            </ul>
+            <Boton
+              variante="secundario"
+              ancho
+              cargando={guardando}
+              onClick={retirar}
+              className="mt-3 !min-h-10 !text-sm"
+            >
+              Retirarlo ya
+            </Boton>
+          </>
+        ) : (
+          <p className="mt-0.5 text-xs text-fg-subtle">
+            No hay parte vigente. La portada dice que todavía no hay parte de hoy.
+          </p>
+        )}
+      </div>
+
+      <AreaTexto
+        etiqueta="Pega aquí el mensaje de hoy"
+        rows={8}
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        placeholder={"LES INFORMO ESTAS SON LAS ESTACIONES QUE ESTÁN SURTIENDO... HORA 1:12 PM\n\nMARA VIEJA (GASOLINA Y DIÉSEL\nFUERTE MARA (GASOLINA\n..."}
+      />
+
+      {/* Lo que se entendió, antes de publicarlo. */}
+      {texto.trim() ? (
+        <div className="rounded-card border border-line bg-surface p-3.5">
+          <p className="text-sm font-semibold text-fg">
+            Se entendieron {leido.estaciones.length}{" "}
+            {leido.estaciones.length === 1 ? "estación" : "estaciones"}
+            {leido.hora ? ` · hora del parte: ${leido.hora}` : ""}
+          </p>
+
+          {leido.estaciones.length === 0 ? (
+            <p className="mt-1 text-xs text-fg-muted">
+              No se reconoció ninguna. Cada línea tiene que nombrar la estación y decir si
+              es gasolina, diésel o las dos.
+            </p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {leido.estaciones.map((estacion: Estacion, indice: number) => (
+                <li
+                  key={`${estacion.nombre}-${indice}`}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <span className="min-w-0 flex-1 font-medium text-fg">{estacion.nombre}</span>
+                  <span className="shrink-0 text-xs text-fg-subtle">
+                    {estacion.combustibles
+                      .map((c) => (c === "diesel" ? "Diésel" : "Gasolina"))
+                      .join(" + ")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+
+      {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+      {hecho ? <Aviso>{hecho}</Aviso> : null}
+
+      <Boton
+        ancho
+        cargando={guardando}
+        disabled={leido.estaciones.length === 0}
+        onClick={publicar}
+        icono={<IconSurtidor size={17} />}
+      >
+        Publicar el parte de hoy
+      </Boton>
+    </section>
+  );
+}
+
 /* ----------------------------------------------------------------- */
 /* Tasas                                                              */
 /* ----------------------------------------------------------------- */
@@ -1363,6 +1538,20 @@ function SeccionTasas() {
   const [guardando, setGuardando] = useState(false);
   const [listo, setListo] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
+  const [probando, setProbando] = useState(false);
+  const [prueba, setPrueba] = useState<
+    { nombre: string; bcv: number | null; binance: number | null; fallo?: string }[] | null
+  >(null);
+
+  async function probar() {
+    setProbando(true);
+    setPrueba(null);
+    try {
+      setPrueba(await probarFuentes());
+    } finally {
+      setProbando(false);
+    }
+  }
 
   async function guardar() {
     setGuardando(true);
@@ -1392,6 +1581,44 @@ function SeccionTasas() {
         <p className="mt-0.5 text-xs text-fg-subtle">
           Origen: {tasas.origen === "api" ? "fuente automática" : tasas.origen === "manual" ? "respaldo manual" : "ninguno"}
         </p>
+      </div>
+
+      {/* Desde fuera no hay manera de saber si una fuente pública dejó de
+          responder o cambió un campo: lo único que se ve es una portada sin
+          cifra. Esto lo contesta desde el teléfono en un toque. */}
+      <div className="flex flex-col gap-2.5 rounded-card border border-line bg-surface p-3.5 shadow-card">
+        <p className="text-sm font-semibold text-fg">¿Responden las fuentes?</p>
+        <p className="text-xs text-fg-muted">
+          Pregunta a cada una por separado, desde este mismo navegador. Si una falla aquí,
+          le falla igual a todo el pueblo.
+        </p>
+
+        {prueba ? (
+          <ul className="flex flex-col gap-1.5">
+            {prueba.map((r) => (
+              <li key={r.nombre} className="rounded-xl bg-surface-2 p-2.5 text-xs">
+                <p className="font-semibold text-fg">{r.nombre}</p>
+                {r.fallo ? (
+                  <p className="text-danger">{r.fallo}</p>
+                ) : (
+                  <p className="tabular-nums text-fg-muted">
+                    BCV: {r.bcv ?? "no lo trae"} · Binance: {r.binance ?? "no lo trae"}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <Boton
+          variante="secundario"
+          ancho
+          cargando={probando}
+          onClick={probar}
+          className="!min-h-10 !text-sm"
+        >
+          Probar las fuentes ahora
+        </Boton>
       </div>
 
       <Campo

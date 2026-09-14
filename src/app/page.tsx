@@ -24,6 +24,7 @@ import {
   IconWhatsApp,
 } from "@/components/icons";
 import { DirectorioPortada } from "@/components/directorio-portada";
+import { EstacionesSurtiendo } from "@/components/estaciones-surtiendo";
 import { Logotipo } from "@/components/logotipo";
 import { PizarraDivisas } from "@/components/pizarra-divisas";
 import { PortadaIglesia } from "@/components/portada-iglesia";
@@ -279,6 +280,10 @@ export default function Portada() {
           </div>
         )}
       </section>
+
+      {/* Encima de los teléfonos de emergencia a propósito: esto se consulta
+          a diario y aquello se consulta una vez al año. */}
+      <EstacionesSurtiendo />
 
       <SeguridadPueblo />
 

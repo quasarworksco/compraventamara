@@ -430,6 +430,19 @@ export function IconMano(props: IconProps) {
   );
 }
 
+/** Surtidor de combustible. */
+export function IconSurtidor(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20.5h10.5" />
+      <path d="M5.4 20.5V4.9a1.4 1.4 0 0 1 1.4-1.4h5.3a1.4 1.4 0 0 1 1.4 1.4v15.6" />
+      <path d="M5.4 10.2h8.1" />
+      <path d="M16.6 8.2h1.6a1.4 1.4 0 0 1 1.4 1.4v7a1.5 1.5 0 0 1-3 0v-3.2h-3" />
+      <path d="M16 6.2 18.3 8" />
+    </Icon>
+  );
+}
+
 export function IconArrowUp(props: IconProps) {
   return (
     <Icon {...props}>
