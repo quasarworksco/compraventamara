@@ -19,6 +19,8 @@ import {
   IconAlert,
   IconBandera,
   IconCheck,
+  IconChevronRight,
+  IconClose,
   IconDescargar,
   IconDollar,
   IconEscudo,
@@ -33,6 +35,7 @@ import {
 } from "@/components/icons";
 import { Barras, Cifra, Cifras, Tendencia } from "@/components/grafico";
 import {
+  AreaTexto,
   Avatar,
   Aviso,
   Boton,
@@ -45,8 +48,11 @@ import {
 } from "@/components/ui";
 import { mensajeFirestore } from "@/lib/errores";
 import {
+  advertirMiembro,
+  borrarMiembro,
   cambiarVendedorSeguro,
   cambiarVerificacion,
+  rechazarFoto,
   nombrarAdministrador,
   quitarAdministrador,
   useAdministradores,
@@ -75,6 +81,7 @@ import {
   borrarPublicacion,
   destacarPublicacion,
   estaDestacada,
+  estaVigente,
 } from "@/lib/publicaciones";
 import { useAhora } from "@/lib/reloj";
 import { guardarTasasManuales, useTasas } from "@/lib/tasas";
@@ -570,13 +577,14 @@ function SeccionReportes({ reportes, correo }: { reportes: Reporte[]; correo: st
 /* Miembros                                                           */
 /* ----------------------------------------------------------------- */
 
-type FiltroMiembros = "todos" | "esperando" | "verificados" | "seguros";
+type FiltroMiembros = "todos" | "esperando" | "verificados" | "seguros" | "pausados";
 
 const FILTROS_MIEMBROS: { id: FiltroMiembros; etiqueta: string }[] = [
   { id: "todos", etiqueta: "Todos" },
-  { id: "esperando", etiqueta: "Esperando" },
+  { id: "esperando", etiqueta: "Sin verificar" },
   { id: "verificados", etiqueta: "Verificados" },
   { id: "seguros", etiqueta: "Seguros" },
+  { id: "pausados", etiqueta: "En pausa" },
 ];
 
 function SeccionMiembros() {
@@ -587,6 +595,8 @@ function SeccionMiembros() {
   // se pulsaba, la promesa se rompía en el vacío y todo seguía igual.
   const [fallo, setFallo] = useState<string | null>(null);
   const [trabajando, setTrabajando] = useState<string | null>(null);
+  /** La ficha que está abierta, si hay alguna. */
+  const [abierto, setAbierto] = useState<string | null>(null);
 
   async function ejecutar(uid: string, accion: () => Promise<void>) {
     setFallo(null);
@@ -600,16 +610,30 @@ function SeccionMiembros() {
     }
   }
 
-  const esperando = (m: Miembro) => !m.verificado && m.solicitaVerificacion === true;
+  /**
+   * Quien todavía no tiene el sello.
+   *
+   * Antes este filtro solo enseñaba a quien había pedido la verificación
+   * expresamente, y esa no es la pregunta que uno le hace a un panel: casi
+   * nadie pide nada, se registran y ya. El resultado era un filtro "Esperando"
+   * casi siempre vacío mientras la lista tenía gente sin revisar.
+   *
+   * Ahora "sin verificar" es lo que dice: todos los que faltan. Los que además
+   * lo pidieron suben al principio, porque esos sí están esperando respuesta.
+   */
+  const sinVerificar = (m: Miembro) => !m.verificado;
+  const pidio = (m: Miembro) => !m.verificado && m.solicitaVerificacion === true;
+  const enPausa = (m: Miembro) => m.fotoRechazada === true;
 
   const visibles = useMemo(() => {
     const texto = normalizarBusqueda(busqueda.trim());
 
     const filtrados = miembros
       .filter((m) => {
-        if (filtro === "esperando") return esperando(m);
+        if (filtro === "esperando") return sinVerificar(m);
         if (filtro === "verificados") return m.verificado;
         if (filtro === "seguros") return m.vendedorSeguro === true;
+        if (filtro === "pausados") return enPausa(m);
         return true;
       })
       .filter((m) =>
@@ -620,15 +644,30 @@ function SeccionMiembros() {
           : true,
       );
 
-    // Quien pidió la verificación va arriba: es la cola que hay que atender.
+    /**
+     * El orden de la cola, de lo más urgente a lo ya resuelto:
+     * primero quien pidió la verificación, después el resto de los que faltan
+     * por revisar, y al final los verificados, que son los que ya no piden
+     * nada de ti. Dentro de cada grupo, los más viejos primero entre los que
+     * esperan, y los más nuevos primero entre los demás.
+     */
+    const escalon = (m: Miembro) => (pidio(m) ? 0 : !m.verificado ? 1 : 2);
+
     return [...filtrados].sort((a, b) => {
-      if (esperando(a) !== esperando(b)) return esperando(a) ? -1 : 1;
-      if (esperando(a) && esperando(b)) return (a.solicitadoEn ?? 0) - (b.solicitadoEn ?? 0);
+      const diferencia = escalon(a) - escalon(b);
+      if (diferencia !== 0) return diferencia;
+      if (pidio(a) && pidio(b)) return (a.solicitadoEn ?? 0) - (b.solicitadoEn ?? 0);
       return b.creadoEn - a.creadoEn;
     });
   }, [miembros, busqueda, filtro]);
 
-  const pendientes = miembros.filter(esperando).length;
+  // Se relee de la lista en vivo y no se guarda una copia: así la ficha
+  // abierta refleja lo que se acaba de cambiar en ella.
+  const ficha = abierto ? (miembros.find((m) => m.uid === abierto) ?? null) : null;
+
+  const pendientes = miembros.filter(pidio).length;
+  const porRevisar = miembros.filter(sinVerificar).length;
+  const pausados = miembros.filter(enPausa).length;
 
   if (cargando) return <Esqueleto className="h-40" />;
 
@@ -653,12 +692,16 @@ function SeccionMiembros() {
       />
 
       <div className="scroll-x flex gap-2">
-        {FILTROS_MIEMBROS.map(({ id, etiqueta }) => (
-          <Chip key={id} activo={filtro === id} onClick={() => setFiltro(id)}>
-            {etiqueta}
-            {id === "esperando" && pendientes > 0 ? ` (${pendientes})` : ""}
-          </Chip>
-        ))}
+        {FILTROS_MIEMBROS.map(({ id, etiqueta }) => {
+          const cuantos =
+            id === "esperando" ? porRevisar : id === "pausados" ? pausados : 0;
+          return (
+            <Chip key={id} activo={filtro === id} onClick={() => setFiltro(id)}>
+              {etiqueta}
+              {cuantos > 0 ? ` (${cuantos})` : ""}
+            </Chip>
+          );
+        })}
       </div>
 
       <div className="flex items-center justify-between gap-2">
@@ -689,6 +732,7 @@ function SeccionMiembros() {
           key={miembro.uid}
           miembro={miembro}
           ocupado={trabajando === miembro.uid}
+          alAbrir={() => setAbierto(miembro.uid)}
           alVerificar={() =>
             ejecutar(miembro.uid, () =>
               cambiarVerificacion(miembro.uid, !miembro.verificado),
@@ -701,26 +745,292 @@ function SeccionMiembros() {
           }
         />
       ))}
+
+      {ficha ? <FichaMiembro miembro={ficha} alCerrar={() => setAbierto(null)} /> : null}
     </section>
+  );
+}
+
+/**
+ * La ficha completa de un miembro, con la foto en grande.
+ *
+ * Existe por una razón concreta: para decidir si una foto de perfil es de
+ * verdad de la persona hay que verla, y en la lista cabe un círculo de 44
+ * píxeles donde todo el mundo parece legítimo. Aquí ocupa la pantalla.
+ *
+ * Es también su carnet: el código MC, el teléfono, el sector y desde cuándo
+ * está. Lo mismo que ve un vecino antes de quedar con él, pero junto y con las
+ * acciones al lado.
+ */
+function FichaMiembro({ miembro, alCerrar }: { miembro: Miembro; alCerrar: () => void }) {
+  const { publicaciones } = useTodasLasPublicaciones(true);
+  const [nota, setNota] = useState(miembro.advertencia ?? "");
+  const [trabajando, setTrabajando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+  const [hecho, setHecho] = useState<string | null>(null);
+
+  const suyas = publicaciones.filter((p) => p.autorUid === miembro.uid);
+
+  async function ejecutar(accion: () => Promise<void>, mensaje: string) {
+    setFallo(null);
+    setHecho(null);
+    setTrabajando(true);
+    try {
+      await accion();
+      setHecho(mensaje);
+    } catch (error) {
+      setFallo(mensajeFirestore(error, "moderar"));
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  async function borrar() {
+    const seguro = window.confirm(
+      `¿Borrar la cuenta de ${nombreCompleto(miembro.nombre, miembro.apellido)} (${miembro.codigo})?\n\n` +
+        `Se irán también sus ${suyas.length} publicaciones. No se puede deshacer.\n\n` +
+        `Si solo quieres que cambie la foto, usa "La foto no es suya" en vez de esto.`,
+    );
+    if (!seguro) return;
+    await ejecutar(async () => {
+      await borrarMiembro(miembro.uid);
+      alCerrar();
+    }, "Cuenta borrada.");
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Ficha de ${miembro.nombre}`}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) alCerrar();
+      }}
+    >
+      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-surface pb-safe sm:rounded-3xl">
+        {/* La foto, del tamaño en que se puede juzgar. */}
+        <div className="relative">
+          {miembro.fotoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={miembro.fotoUrl}
+              alt={`Foto de perfil de ${miembro.nombre}`}
+              className="aspect-square w-full rounded-t-3xl object-cover sm:rounded-t-3xl"
+            />
+          ) : (
+            <div className="flex aspect-square w-full items-center justify-center rounded-t-3xl bg-surface-2 text-fg-subtle">
+              <IconUser size={64} />
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={alCerrar}
+            aria-label="Cerrar"
+            className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm"
+          >
+            <IconClose size={20} />
+          </button>
+
+          {miembro.fotoRechazada ? (
+            <p className="absolute inset-x-0 bottom-0 bg-danger/90 px-4 py-2 text-sm font-semibold text-white">
+              Cuenta en pausa: debe cambiar esta foto
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-3.5 p-4">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-lg font-bold text-fg">
+                {nombreCompleto(miembro.nombre, miembro.apellido)}
+              </h2>
+              {miembro.verificado ? <SelloVerificado size={16} /> : null}
+              {miembro.vendedorSeguro ? <SelloSeguro size={17} /> : null}
+            </div>
+            <p className="text-sm tabular-nums text-fg-muted">{miembro.codigo}</p>
+          </div>
+
+          <dl className="grid grid-cols-2 gap-3 rounded-card bg-surface-2 p-3.5 text-sm">
+            <div>
+              <dt className="text-xs text-fg-subtle">Teléfono</dt>
+              <dd>
+                <a
+                  href={`tel:${miembro.telefono}`}
+                  className="font-medium tabular-nums text-brand-600"
+                >
+                  {formatearTelefono(miembro.telefono)}
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-fg-subtle">Sector</dt>
+              <dd className="font-medium text-fg">{miembro.zona || "Sin indicar"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-fg-subtle">Se registró</dt>
+              <dd className="font-medium text-fg">{hace(miembro.creadoEn)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-fg-subtle">Publicaciones</dt>
+              <dd className="font-medium text-fg">{suyas.length}</dd>
+            </div>
+          </dl>
+
+          {suyas.length > 0 ? (
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-fg-subtle">Lo que ha publicado</p>
+              <ul className="flex flex-col gap-1">
+                {suyas.slice(0, 6).map((p) => (
+                  <li key={p.id}>
+                    <Link
+                      href={`/publicacion/?id=${p.id}`}
+                      className="clamp-1 text-sm text-brand-600"
+                    >
+                      {ETIQUETA_TIPO[p.tipo]} · {p.titulo}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
+          {hecho ? <Aviso>{hecho}</Aviso> : null}
+
+          <div className="flex flex-wrap gap-2">
+            <Boton
+              variante={miembro.verificado ? "secundario" : "primario"}
+              cargando={trabajando}
+              className="!min-h-10 flex-1 !text-sm"
+              icono={miembro.verificado ? undefined : <IconCheck size={16} />}
+              onClick={() =>
+                ejecutar(
+                  () => cambiarVerificacion(miembro.uid, !miembro.verificado),
+                  miembro.verificado ? "Verificación retirada." : "Miembro verificado.",
+                )
+              }
+            >
+              {miembro.verificado ? "Quitar verificación" : "Verificar"}
+            </Boton>
+
+            <Boton
+              variante="secundario"
+              cargando={trabajando}
+              disabled={!miembro.verificado}
+              icono={<IconEscudo size={16} />}
+              className={`!min-h-10 flex-1 !text-sm ${
+                miembro.vendedorSeguro ? "" : "!border-verde-300 !text-verde-600"
+              }`}
+              onClick={() =>
+                ejecutar(
+                  () => cambiarVendedorSeguro(miembro.uid, !miembro.vendedorSeguro),
+                  miembro.vendedorSeguro ? "Aval retirado." : "Ahora es Vendedor Seguro.",
+                )
+              }
+            >
+              {miembro.vendedorSeguro ? "Quitar el aval" : "Vendedor Seguro"}
+            </Boton>
+          </div>
+
+          {/* La foto: el control que da sentido a haberla puesto en grande. */}
+          <div className="flex flex-col gap-2 rounded-card border border-line p-3.5">
+            <p className="text-sm font-semibold text-fg">¿La foto es de esta persona?</p>
+            <p className="text-xs text-fg-muted">
+              Si es un logo, un paisaje, la foto de otro o no se le ve la cara, ponla en
+              pausa: no podrá publicar ni escribir hasta que suba una suya, y volverá a esta
+              cola cuando lo haga.
+            </p>
+            <Boton
+              variante={miembro.fotoRechazada ? "secundario" : "peligro"}
+              ancho
+              cargando={trabajando}
+              className="!min-h-10 !text-sm"
+              onClick={() =>
+                ejecutar(
+                  () => rechazarFoto(miembro.uid, !miembro.fotoRechazada),
+                  miembro.fotoRechazada
+                    ? "Cuenta reactivada."
+                    : "Cuenta en pausa hasta que cambie la foto.",
+                )
+              }
+            >
+              {miembro.fotoRechazada ? "Levantar la pausa" : "La foto no es suya"}
+            </Boton>
+          </div>
+
+          {/* Una advertencia: lo que hay entre no hacer nada y cerrar una cuenta. */}
+          <div className="flex flex-col gap-2 rounded-card border border-line p-3.5">
+            <AreaTexto
+              etiqueta="Dejarle una nota"
+              rows={2}
+              maxLength={500}
+              placeholder="La verá al entrar. Por ejemplo: tu foto se ve muy oscura."
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+            />
+            <Boton
+              variante="secundario"
+              ancho
+              cargando={trabajando}
+              className="!min-h-10 !text-sm"
+              onClick={() =>
+                ejecutar(
+                  () => advertirMiembro(miembro.uid, nota),
+                  nota.trim() ? "Nota guardada." : "Nota retirada.",
+                )
+              }
+            >
+              {nota.trim() ? "Guardar la nota" : "Quitar la nota"}
+            </Boton>
+          </div>
+
+          <Boton
+            variante="peligro"
+            ancho
+            cargando={trabajando}
+            icono={<IconTrash size={16} />}
+            onClick={borrar}
+          >
+            Borrar la cuenta y sus {suyas.length} publicaciones
+          </Boton>
+        </div>
+      </div>
+    </div>
   );
 }
 
 function FilaMiembro({
   miembro,
   ocupado,
+  alAbrir,
   alVerificar,
   alAsegurar,
 }: {
   miembro: Miembro;
   ocupado: boolean;
+  alAbrir: () => void;
   alVerificar: () => void;
   alAsegurar: () => void;
 }) {
   const seguro = miembro.vendedorSeguro === true;
 
   return (
-    <article className="flex flex-col gap-3 tarjeta p-3">
-      <div className="flex items-center gap-3">
+    <article
+      className={`flex flex-col gap-3 tarjeta p-3 ${
+        miembro.fotoRechazada ? "ring-2 ring-danger/40" : ""
+      }`}
+    >
+      {/* Toda la cabecera abre la ficha: para juzgar una foto de perfil hay
+          que verla en grande, y en la lista cabe un círculo de 44 píxeles
+          donde todo el mundo parece legítimo. */}
+      <button
+        type="button"
+        onClick={alAbrir}
+        className="flex items-center gap-3 text-left"
+        aria-label={`Ver la ficha de ${nombreCompleto(miembro.nombre, miembro.apellido)}`}
+      >
         <Avatar
           size={44}
           url={miembro.fotoUrl}
@@ -746,10 +1056,18 @@ function FilaMiembro({
             </span>
           ) : null}
           {seguro && miembro.seguroDesde ? (
-            <p className="text-xs text-verde-600">Vendedor Seguro desde {hace(miembro.seguroDesde)}</p>
+            <p className="text-xs text-verde-600">
+              Vendedor Seguro desde {hace(miembro.seguroDesde)}
+            </p>
+          ) : null}
+          {miembro.fotoRechazada ? (
+            <span className="mt-1 inline-block">
+              <Insignia tono="venta">En pausa: debe cambiar su foto</Insignia>
+            </span>
           ) : null}
         </div>
-      </div>
+        <IconChevronRight size={18} className="shrink-0 text-fg-subtle" />
+      </button>
 
       <div className="flex flex-wrap gap-2">
         <Boton
@@ -799,8 +1117,7 @@ function SeccionPublicaciones() {
   const [tipo, setTipo] = useState<TipoPublicacion | null>(null);
   const [estado, setEstado] = useState<FiltroEstado>("vivas");
 
-  const viva = (p: Publicacion) =>
-    p.estado === "activa" && (p.tipo === "negocio" || p.venceEn > ahora);
+  const viva = (p: Publicacion) => estaVigente(p, ahora);
 
   const visibles = useMemo(() => {
     const texto = normalizarBusqueda(busqueda.trim());

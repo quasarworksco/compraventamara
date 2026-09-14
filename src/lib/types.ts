@@ -13,8 +13,32 @@
  * por WhatsApp, que es donde el pueblo ya conversa.
  */
 
-/** Los cuatro módulos del grupo. */
-export type TipoPublicacion = "producto" | "negocio" | "mototaxi" | "divisa" | "rifa";
+/** Los módulos del grupo. */
+export type TipoPublicacion =
+  | "producto"
+  | "negocio"
+  | "mototaxi"
+  | "divisa"
+  | "rifa"
+  | "carrera";
+
+/**
+ * Lo que no caduca solo.
+ *
+ * Un negocio del directorio y un mototaxi son fichas de quién es alguien, no
+ * anuncios de algo que se acaba: la panadería sigue siendo la panadería, y
+ * quien trabaja la moto la sigue trabajando. Hacerles cumplir los 30 días del
+ * marketplace vaciaba el directorio cada mes y obligaba a registrarse de nuevo
+ * a gente que no había cambiado nada.
+ */
+export const TIPOS_PERMANENTES: TipoPublicacion[] = ["negocio", "mototaxi"];
+
+export function esPermanente(tipo: TipoPublicacion): boolean {
+  return TIPOS_PERMANENTES.includes(tipo);
+}
+
+/** Cuánto vive una carrera pedida antes de retirarse sola. */
+export const HORAS_VIGENCIA_CARRERA = 2;
 
 /** Días que vive una publicación del marketplace antes de vencer. */
 export const DIAS_VIGENCIA = 30;
@@ -84,6 +108,24 @@ export interface Miembro {
   vendedorSeguro?: boolean;
   /** Desde cuándo lo es, para poder retirarlo con criterio. */
   seguroDesde?: number;
+  /**
+   * Nota que la administración le deja ver al miembro la próxima vez que
+   * entre. No bloquea nada: es un aviso, del estilo "tu foto se ve borrosa".
+   */
+  advertencia?: string;
+  /**
+   * La foto de perfil no es de la persona, y hasta que la cambie no puede
+   * publicar ni escribir en el chat.
+   *
+   * La foto es lo que permite reconocer a alguien al cerrar un trato en
+   * persona. Una cuenta con la foto de otro —o con un logo, o un paisaje— es
+   * exactamente la que conviene a quien viene a estafar, así que aquí la foto
+   * no es decoración del perfil: es el perfil.
+   *
+   * El miembro solo puede apagar esta marca subiendo una foto distinta; las
+   * reglas no le dejan quitársela sin cambiarla.
+   */
+  fotoRechazada?: boolean;
   /** El miembro pidió que lo verifiquen y espera respuesta. */
   solicitaVerificacion?: boolean;
   /** Cuándo lo pidió, para que la administración atienda por orden. */
@@ -156,7 +198,21 @@ export interface PublicacionProducto extends PublicacionBase {
 /** Ficha del directorio de negocios del pueblo. */
 export interface PublicacionNegocio extends PublicacionBase {
   tipo: "negocio";
+  /**
+   * Rubro principal. Es el que encabeza la ficha y bajo el que se lista en el
+   * índice del directorio.
+   */
   categoria: string;
+  /**
+   * Todos los rubros del negocio, el principal incluido.
+   *
+   * Muy pocos negocios del pueblo hacen una sola cosa: la misma tienda vende
+   * celulares, instala cámaras y tira cableado. Obligarla a elegir uno la
+   * dejaba invisible para dos de cada tres vecinos que la buscaban.
+   *
+   * Las fichas anteriores no lo traen: quien lo lea debe caer en `categoria`.
+   */
+  categorias?: string[];
   direccion: string;
   horario: string;
   /** Enlace opcional a Instagram, catálogo, etc. */
@@ -258,12 +314,42 @@ export interface PublicacionRifa extends PublicacionBase {
   numerosDisponibles: number;
 }
 
+/**
+ * Alguien pide una carrera y los conductores la ven.
+ *
+ * Es el camino inverso del directorio: en vez de buscar quién está rodando y
+ * escribirle uno por uno, se deja el viaje puesto y el que quiera lo toma.
+ * Sirve sobre todo de madrugada y bajo aguacero, que es cuando hay que
+ * escribirle a cinco para que conteste uno.
+ *
+ * Vive dos horas. Una carrera de hace medio día no es una carrera, es basura
+ * en el tablón.
+ */
+export interface PublicacionCarrera extends PublicacionBase {
+  tipo: "carrera";
+  /** De dónde sale. */
+  origen: string;
+  /** Adónde va. */
+  destino: string;
+  /**
+   * Punto exacto de recogida, si lo compartió. Es lo que convierte "estoy por
+   * el Uveral" en algo a lo que un motorizado puede llegar sin llamar.
+   */
+  puntoOrigen?: Coordenadas;
+  /** Si prefiere moto, carro, o le da igual. */
+  prefiere: ClaseTransporte | "cualquiera";
+  /** Lo que ofrece pagar, si lo quiso decir. 0 significa "a convenir". */
+  pago: number;
+  moneda: Moneda;
+}
+
 export type Publicacion =
   | PublicacionProducto
   | PublicacionNegocio
   | PublicacionMototaxi
   | PublicacionDivisa
-  | PublicacionRifa;
+  | PublicacionRifa
+  | PublicacionCarrera;
 
 /* ----------------------------------------------------------------- */
 /* Reportes                                                           */

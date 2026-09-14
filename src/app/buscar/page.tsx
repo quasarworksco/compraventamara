@@ -24,7 +24,14 @@ import { useFiltro, usePublicaciones } from "@/lib/publicaciones";
 import type { Publicacion, TipoPublicacion } from "@/lib/types";
 
 /** El orden en que se enseñan las secciones: lo más buscado primero. */
-const ORDEN: TipoPublicacion[] = ["producto", "negocio", "mototaxi", "rifa", "divisa"];
+const ORDEN: TipoPublicacion[] = [
+  "producto",
+  "negocio",
+  "mototaxi",
+  "rifa",
+  "divisa",
+  "carrera",
+];
 
 export default function PaginaBuscar() {
   return (
@@ -131,6 +138,7 @@ const RUTA: Record<TipoPublicacion, string> = {
   mototaxi: "/mototaxis",
   rifa: "/rifas",
   divisa: "/dolares",
+  carrera: "/mototaxis",
 };
 
 function Seccion({ tipo, resultados }: { tipo: TipoPublicacion; resultados: Publicacion[] }) {

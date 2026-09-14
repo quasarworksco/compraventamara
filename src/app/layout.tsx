@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 
 import { Bienvenida } from "@/components/bienvenida";
+import { AvisoCuenta } from "@/components/aviso-cuenta";
 import { NavInferior } from "@/components/nav-inferior";
 import { ProveedorSesion } from "@/lib/auth";
 import "./globals.css";
@@ -67,7 +68,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Bienvenida />
         <ProveedorSesion>
           {/* El hueco inferior deja libre la navegación fija. */}
-          <div className="mx-auto min-h-dvh max-w-lg pb-24">{children}</div>
+          <div className="mx-auto min-h-dvh max-w-lg pb-24">
+            {/* Va antes que nada: si la administración pausó la cuenta, es lo
+                primero que la persona tiene que ver, entre donde entre. */}
+            <AvisoCuenta />
+            {children}
+          </div>
           <NavInferior />
         </ProveedorSesion>
       </body>

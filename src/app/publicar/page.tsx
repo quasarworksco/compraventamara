@@ -46,7 +46,7 @@ import {
   crearPublicacion,
   publicarOfertaDivisa,
   usePublicacion,
-  type BorradorPublicacion,
+  type BorradorDe,
 } from "@/lib/publicaciones";
 import {
   CLASES_TRANSPORTE,
@@ -70,6 +70,16 @@ const TIPOS = [
 ] as const satisfies readonly { tipo: TipoPublicacion; titulo: string; detalle: string; Icono: typeof IconTag }[];
 
 const METODOS: MetodoPago[] = ["pago-movil", "efectivo", "zelle", "binance", "transferencia"];
+
+/**
+ * Lo que se ofrece, que es lo que este formulario sirve.
+ *
+ * Pedir una carrera queda fuera a propósito: es el acto contrario —"necesito"
+ * en vez de "tengo"—, se decide en dos segundos y desde la propia sección de
+ * transporte. Meterlo aquí como un sexto tipo obligaba a pasar por un asistente
+ * de publicación a alguien que está parado bajo la lluvia.
+ */
+type TipoOfrecido = Exclude<TipoPublicacion, "carrera">;
 
 export default function PaginaPublicar() {
   return (
@@ -96,7 +106,7 @@ function Publicar() {
   return (
     <Formulario
       inicial={idEditar ? publicacion : null}
-      tipoPedido={(parametros.get("tipo") ?? "producto") as TipoPublicacion}
+      tipoPedido={(parametros.get("tipo") ?? "producto") as TipoOfrecido}
     />
   );
 }
@@ -107,15 +117,21 @@ function Formulario({
 }: {
   /** La publicación que se corrige, o null si se está creando una nueva. */
   inicial: Publicacion | null;
-  tipoPedido: TipoPublicacion;
+  tipoPedido: TipoOfrecido;
 }) {
   const { miembro, cargando, configurado } = useSesion();
   const router = useRouter();
 
   const editando = inicial !== null;
-  const [tipo, setTipo] = useState<TipoPublicacion>(
-    inicial?.tipo ?? (TIPOS.some((t) => t.tipo === tipoPedido) ? tipoPedido : "producto"),
-  );
+  const [tipo, setTipo] = useState<TipoOfrecido>(() => {
+    // Una carrera pedida no se corrige desde aquí: se retira y se pide otra.
+    // Si llegara una por la URL, el formulario cae en el tipo por defecto en
+    // vez de quedarse en un estado que no sabe pintar.
+    const deLaPublicacion =
+      inicial && inicial.tipo !== "carrera" ? inicial.tipo : undefined;
+    if (deLaPublicacion) return deLaPublicacion;
+    return TIPOS.some((t) => t.tipo === tipoPedido) ? tipoPedido : "producto";
+  });
 
   /** Lee un campo de la publicación que se corrige, si es de ese tipo. */
   function de<T extends Publicacion["tipo"], C extends keyof Extract<Publicacion, { tipo: T }>>(
@@ -150,6 +166,14 @@ function Formulario({
 
   // Negocio.
   const [rubro, setRubro] = useState(de("negocio", "categoria") ?? CATEGORIAS_NEGOCIO[0]);
+  /**
+   * Los rubros de más. Muy pocos negocios del pueblo hacen una sola cosa: la
+   * misma tienda vende celulares, instala cámaras y tira cableado. Obligarla a
+   * elegir uno la dejaba invisible para dos de cada tres vecinos.
+   */
+  const [rubrosExtra, setRubrosExtra] = useState<string[]>(
+    (de("negocio", "categorias") ?? []).filter((r) => r !== de("negocio", "categoria")),
+  );
   const [direccion, setDireccion] = useState(de("negocio", "direccion") ?? "");
   const [horario, setHorario] = useState(de("negocio", "horario") ?? "");
   const [enlace, setEnlace] = useState(de("negocio", "enlace") ?? "");
@@ -213,7 +237,7 @@ function Formulario({
     );
   }
 
-  function construirBorrador(): BorradorPublicacion {
+  function construirBorrador(): BorradorDe<TipoOfrecido> {
     const comun = { descripcion: descripcion.trim(), zona, imagenes };
 
     switch (tipo) {
@@ -234,6 +258,8 @@ function Formulario({
           tipo: "negocio",
           titulo: titulo.trim(),
           categoria: rubro,
+          // El principal siempre va primero y sin repetirse.
+          categorias: [rubro, ...rubrosExtra.filter((r) => r !== rubro)],
           direccion: direccion.trim(),
           horario: horario.trim(),
           enlace: enlace.trim() || undefined,
@@ -484,7 +510,12 @@ function Formulario({
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
               />
-              <Selector etiqueta="Rubro" value={rubro} onChange={(e) => setRubro(e.target.value)}>
+              <Selector
+                etiqueta="Rubro principal"
+                value={rubro}
+                onChange={(e) => setRubro(e.target.value)}
+                ayuda="Es el que encabeza tu ficha y bajo el que sales en el índice."
+              >
                 {RUBROS_NEGOCIO.map((grupo) => (
                   <optgroup key={grupo.grupo} label={grupo.grupo}>
                     {grupo.rubros.map((r) => (
@@ -493,6 +524,12 @@ function Formulario({
                   </optgroup>
                 ))}
               </Selector>
+
+              <RubrosExtra
+                principal={rubro}
+                elegidos={rubrosExtra}
+                alCambiar={setRubrosExtra}
+              />
               <Campo
                 etiqueta="Dirección"
                 placeholder="Av. principal, frente a la plaza"
@@ -832,5 +869,80 @@ function SinVerificar() {
         </Boton>
       )}
     </div>
+  );
+}
+
+/**
+ * Los demás rubros del negocio.
+ *
+ * Va plegado por defecto: la mayoría se registra con uno solo, y desplegar una
+ * lista de cincuenta rubros delante de todo el mundo convierte un formulario
+ * de un minuto en uno de cinco. Quien hace varias cosas sabe que las hace y
+ * abre esto a propósito.
+ */
+function RubrosExtra({
+  principal,
+  elegidos,
+  alCambiar,
+}: {
+  principal: string;
+  elegidos: string[];
+  alCambiar: (rubros: string[]) => void;
+}) {
+  function alternar(rubro: string) {
+    alCambiar(
+      elegidos.includes(rubro) ? elegidos.filter((r) => r !== rubro) : [...elegidos, rubro],
+    );
+  }
+
+  const cuantos = elegidos.filter((r) => r !== principal).length;
+
+  return (
+    <details className="rounded-xl border border-line bg-surface">
+      <summary className="flex min-h-12 cursor-pointer items-center justify-between gap-2 px-3.5 text-sm font-medium text-fg-muted">
+        ¿Haces algo más?
+        <span className="text-xs text-fg-subtle">
+          {cuantos > 0 ? `${cuantos} rubro${cuantos === 1 ? "" : "s"} más` : "Opcional"}
+        </span>
+      </summary>
+
+      <div className="flex flex-col gap-3 border-t border-line p-3.5">
+        <p className="text-xs text-fg-subtle">
+          Saldrás en el directorio bajo cada uno de los que marques, y te encontrarán
+          buscando cualquiera de ellos.
+        </p>
+
+        {RUBROS_NEGOCIO.map((grupo) => (
+          <fieldset key={grupo.grupo}>
+            <legend className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+              {grupo.grupo}
+            </legend>
+            <div className="flex flex-wrap gap-1.5">
+              {grupo.rubros.map((r) => {
+                const esPrincipal = r === principal;
+                const activo = esPrincipal || elegidos.includes(r);
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    disabled={esPrincipal}
+                    onClick={() => alternar(r)}
+                    aria-pressed={activo}
+                    className={`min-h-9 rounded-pill border px-3 text-sm font-medium disabled:opacity-60 ${
+                      activo
+                        ? "border-brand-600 bg-brand-600 text-white"
+                        : "border-line bg-surface text-fg-muted"
+                    }`}
+                  >
+                    {r}
+                    {esPrincipal ? " ·  principal" : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+    </details>
   );
 }

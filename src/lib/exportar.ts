@@ -17,7 +17,8 @@
  */
 
 import { ETIQUETA_TIPO, formatearTelefono } from "./formato";
-import type { Miembro, Publicacion, PublicacionDivisa } from "./types";
+import { estaVigente } from "./publicaciones";
+import { esPermanente, type Miembro, type Publicacion, type PublicacionDivisa } from "./types";
 
 type Celda = string | number | boolean | null | undefined;
 
@@ -124,15 +125,21 @@ export function exportarPublicaciones(publicaciones: Publicacion[], ahora: numbe
         ETIQUETA_TIPO[p.tipo],
         p.titulo,
         p.zona,
-        "categoria" in p ? p.categoria : p.tipo === "divisa" ? p.divisa : "",
+        p.tipo === "negocio"
+          ? (p.categorias?.length ? p.categorias : [p.categoria]).join(" · ")
+          : "categoria" in p
+            ? p.categoria
+            : p.tipo === "divisa"
+              ? p.divisa
+              : "",
         precioLegible(p),
         p.estado,
-        p.tipo === "negocio" || p.venceEn > ahora ? "Sí" : "No",
+        estaVigente(p, ahora) ? "Sí" : "No",
         `${p.autorNombre} ${p.autorApellido}`.trim(),
         p.autorCodigo,
         `+${p.autorTelefono}`,
         fecha(p.creadaEn),
-        p.tipo === "negocio" ? "no vence" : fecha(p.venceEn),
+        esPermanente(p.tipo) ? "no vence" : fecha(p.venceEn),
         p.prorrogas ?? 0,
       ]),
     ),

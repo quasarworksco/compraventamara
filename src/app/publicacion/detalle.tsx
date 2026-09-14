@@ -350,6 +350,26 @@ function DatosPropios({ publicacion }: { publicacion: Publicacion }) {
     );
   }
 
+  if (publicacion.tipo === "carrera") {
+    return (
+      <div className="flex flex-col gap-2.5">
+        <dl className="flex flex-col gap-3 rounded-card bg-surface-2 p-3.5 text-sm">
+          <Dato etiqueta="Sale de" valor={publicacion.origen} />
+          <Dato etiqueta="Va hasta" valor={publicacion.destino} />
+          {publicacion.pago > 0 ? (
+            <Dato
+              etiqueta="Ofrece"
+              valor={formatearPrecio(publicacion.pago, publicacion.moneda)}
+            />
+          ) : null}
+        </dl>
+        {coordenadasValidas(publicacion.puntoOrigen) ? (
+          <BotonMapa punto={publicacion.puntoOrigen} etiqueta="Ir a recogerlo" />
+        ) : null}
+      </div>
+    );
+  }
+
   if (publicacion.tipo === "mototaxi") {
     const esTaxi = (publicacion.clase ?? "mototaxi") === "taxi";
     return (

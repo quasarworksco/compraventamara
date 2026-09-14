@@ -19,8 +19,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { CabeceraSeccion } from "@/components/cabecera-seccion";
+import { BotonMapa } from "@/components/boton-mapa";
 import { BotonWhatsApp } from "@/components/boton-whatsapp";
-import { IconCarro, IconMoto, IconPin, IconPlus } from "@/components/icons";
+import { PedirCarrera } from "@/components/pedir-carrera";
+import { IconCarro, IconMano, IconMoto, IconPin, IconPlus } from "@/components/icons";
 import {
   Avatar,
   Boton,
@@ -30,19 +32,34 @@ import {
   SelloSeguro,
   SelloVerificado,
 } from "@/components/ui";
+import { useSesion } from "@/lib/auth";
 import {
   formatearPlaca,
   formatearPrecio,
   formatearTelefono,
+  hace,
   iniciales,
   nombreCompleto,
 } from "@/lib/formato";
-import { estaDestacada, useFiltro, usePublicaciones } from "@/lib/publicaciones";
-import { CLASES_TRANSPORTE, type ClaseTransporte, type PublicacionMototaxi } from "@/lib/types";
+import { coordenadasValidas } from "@/lib/mapas";
+import {
+  estaDestacada,
+  estaVigente,
+  useFiltro,
+  usePublicaciones,
+} from "@/lib/publicaciones";
+import { useAhora } from "@/lib/reloj";
+import {
+  CLASES_TRANSPORTE,
+  type ClaseTransporte,
+  type PublicacionCarrera,
+  type PublicacionMototaxi,
+} from "@/lib/types";
 
 export default function PaginaTransporte() {
   const [busqueda, setBusqueda] = useState("");
   const [clase, setClase] = useState<ClaseTransporte>("mototaxi");
+  const [pidiendo, setPidiendo] = useState(false);
 
   const { publicaciones, cargando } = usePublicaciones({ tipo: "mototaxi", tope: 120 });
   const filtrados = useFiltro(publicaciones, busqueda);
@@ -81,6 +98,16 @@ export default function PaginaTransporte() {
         marcador="Buscar por sector, nombre o placa"
       />
 
+      {/* Pedir va antes que buscar: quien abre esta sección de madrugada no
+          quiere leer una lista de veinte, quiere que alguien lo recoja. */}
+      <div className="mt-3 px-4">
+        <Boton ancho onClick={() => setPidiendo(true)} icono={<IconMano size={18} />}>
+          Quiero una carrera
+        </Boton>
+      </div>
+
+      {pidiendo ? <PedirCarrera alCerrar={() => setPidiendo(false)} /> : null}
+
       {/* Moto o carro: es lo primero que decide quien llega. */}
       <div role="tablist" aria-label="Tipo de transporte" className="mx-4 mt-3 flex gap-2">
         {CLASES_TRANSPORTE.map((opcion) => {
@@ -108,6 +135,8 @@ export default function PaginaTransporte() {
         })}
       </div>
 
+      <CarrerasPedidas />
+
       <main className="flex flex-col gap-2.5 px-4 py-3">
         {cargando ? (
           <>
@@ -134,6 +163,96 @@ export default function PaginaTransporte() {
         )}
       </main>
     </>
+  );
+}
+
+
+/**
+ * Las carreras que el pueblo está pidiendo ahora mismo.
+ *
+ * Va arriba de la lista de conductores porque el que abre esta sección siendo
+ * conductor viene a buscar trabajo, y el que la abre siendo pasajero ya tiene
+ * su botón. Si no hay ninguna pedida, no ocupa sitio.
+ */
+function CarrerasPedidas() {
+  const { publicaciones } = usePublicaciones({ tipo: "carrera", tope: 30 });
+  const { miembro } = useSesion();
+  const ahora = useAhora(30_000);
+
+  const carreras = publicaciones
+    .filter((p): p is PublicacionCarrera => p.tipo === "carrera")
+    .filter((c) => estaVigente(c, ahora))
+    .sort((a, b) => b.creadaEn - a.creadaEn);
+
+  if (carreras.length === 0) return null;
+
+  return (
+    <section aria-labelledby="titulo-carreras" className="mt-4 px-4">
+      <h2 id="titulo-carreras" className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg-muted">
+        <span className="pulso size-1.5 rounded-full bg-verde-500" aria-hidden="true" />
+        Están pidiendo carrera
+        <span className="font-normal text-fg-subtle">{carreras.length}</span>
+      </h2>
+
+      <ul className="flex flex-col gap-2">
+        {carreras.map((carrera) => (
+          <li key={carrera.id}>
+            <Carrera carrera={carrera} esMia={miembro?.uid === carrera.autorUid} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Carrera({ carrera, esMia }: { carrera: PublicacionCarrera; esMia: boolean }) {
+  const prefiere = carrera.prefiere ?? "cualquiera";
+
+  return (
+    <article className="tarjeta flex items-center gap-2.5 p-2.5">
+      <Avatar
+        size={38}
+        url={carrera.autorFoto}
+        nombre={iniciales(carrera.autorNombre, carrera.autorApellido)}
+      />
+
+      <div className="min-w-0 flex-1">
+        <p className="clamp-1 text-sm font-semibold text-fg">
+          {carrera.origen} → {carrera.destino}
+        </p>
+        <p className="clamp-1 text-xs text-fg-subtle">
+          {carrera.autorNombre} · {hace(carrera.creadaEn)}
+          {carrera.pago > 0 ? ` · ofrece ${formatearPrecio(carrera.pago, carrera.moneda)}` : ""}
+          {prefiere !== "cualquiera"
+            ? ` · prefiere ${prefiere === "taxi" ? "taxi" : "moto"}`
+            : ""}
+        </p>
+        {carrera.descripcion ? (
+          <p className="clamp-1 text-xs text-fg-muted">{carrera.descripcion}</p>
+        ) : null}
+      </div>
+
+      {/* Quien la pidió no se escribe a sí mismo: la retira. */}
+      {esMia ? (
+        <Insignia tono="marca">Tuya</Insignia>
+      ) : (
+        <div className="flex shrink-0 items-center gap-1.5">
+          {coordenadasValidas(carrera.puntoOrigen) ? (
+            <BotonMapa
+              compacto
+              punto={carrera.puntoOrigen}
+              etiqueta={`Cómo llegar hasta ${carrera.autorNombre}`}
+            />
+          ) : null}
+          <BotonWhatsApp
+            compacto
+            telefono={carrera.autorTelefono}
+            etiqueta={`Tomar la carrera de ${carrera.autorNombre}`}
+            mensaje={`Hola ${carrera.autorNombre}, te escribo por Mara Comercio. Puedo hacerte la carrera de ${carrera.origen} a ${carrera.destino}. ¿Sigues necesitándola? Voy saliendo.`}
+          />
+        </div>
+      )}
+    </article>
   );
 }
 

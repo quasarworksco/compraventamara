@@ -27,6 +27,7 @@ import { DirectorioPortada } from "@/components/directorio-portada";
 import { Logotipo } from "@/components/logotipo";
 import { PizarraDivisas } from "@/components/pizarra-divisas";
 import { PortadaIglesia } from "@/components/portada-iglesia";
+import { TransportePortada } from "@/components/transporte-portada";
 import { SeguridadPueblo } from "@/components/seguridad-pueblo";
 import { TarjetaPublicacion } from "@/components/tarjeta-publicacion";
 import { TasasDelDia } from "@/components/tasas-del-dia";
@@ -91,16 +92,17 @@ const SECCIONES = [
 ] as const;
 
 /** Estable entre renderizados: si se creara al vuelo, la lista se recalcularía sola. */
-const EXCLUIDOS_DEL_FEED: TipoPublicacion[] = ["divisa", "negocio"];
+const EXCLUIDOS_DEL_FEED: TipoPublicacion[] = ["divisa", "negocio", "mototaxi", "carrera"];
 
 export default function Portada() {
   const { miembro, cargando, configurado } = useSesion();
-  // Dos tipos quedan fuera de este feed, cada uno por su motivo. Las divisas
-  // tienen su propia pizarra: una oferta de cambio entre una moto y un celular
-  // ni se lee ni se compara. Los negocios, porque no caducan: la panadería del
-  // pueblo no es una novedad de esta semana, y ponerla en una lista llamada
-  // "publicado hace poco" la condena a hundirse en cuanto alguien venda algo.
-  // El directorio tiene su propia estantería más abajo.
+  // Lo que queda fuera de este feed y por qué. Las divisas tienen su propia
+  // pizarra: una oferta de cambio entre una moto y un celular ni se lee ni se
+  // compara. Los negocios y los conductores, porque no caducan: la panadería
+  // del pueblo no es una novedad de esta semana, y en una lista llamada
+  // "publicado hace poco" se hundían en cuanto alguien vendiera algo; cada uno
+  // tiene su franja más abajo. Y las carreras pedidas, porque duran dos horas
+  // y solo le sirven a quien anda rodando.
   const { publicaciones, cargando: cargandoPublicaciones } = usePublicaciones({
     tope: 12,
     excluir: EXCLUIDOS_DEL_FEED,
@@ -241,6 +243,8 @@ export default function Portada() {
       </section>
 
       <DirectorioPortada />
+
+      <TransportePortada />
 
       {/* Lo último publicado: artículos, mototaxis y rifas. Los negocios no,
           porque no son novedad de nadie: viven arriba, en el directorio. */}

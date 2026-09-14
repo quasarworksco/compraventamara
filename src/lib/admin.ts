@@ -272,6 +272,77 @@ async function refrescarSellosDelAutor(
   }
 }
 
+/**
+ * Deja o retira una advertencia visible para el miembro.
+ *
+ * No bloquea nada: es la vía intermedia entre no hacer nada y cerrarle la
+ * cuenta a alguien. "Tu foto se ve borrosa", "no vuelvas a publicar lo mismo
+ * cinco veces". La mayoría de los problemas se arreglan diciéndolos.
+ */
+export async function advertirMiembro(uid: string, texto: string): Promise<void> {
+  const limpio = texto.trim().slice(0, 500);
+  await updateDoc(doc(db(), "miembros", uid), {
+    advertencia: limpio || deleteField(),
+  });
+}
+
+/**
+ * Marca que la foto de perfil no es de la persona.
+ *
+ * La cuenta queda en pausa —no publica ni escribe— hasta que suba otra. No es
+ * un castigo: la foto es lo que permite reconocer a alguien al cerrar un trato
+ * en la calle, así que una cuenta con la foto de otro, un logo o un paisaje es
+ * exactamente la que le conviene a quien viene a estafar.
+ *
+ * Quitarla a mano desde aquí es para cuando se rechazó por error; en el curso
+ * normal la apaga el propio miembro subiendo una foto distinta.
+ */
+export async function rechazarFoto(uid: string, rechazada: boolean): Promise<void> {
+  await updateDoc(doc(db(), "miembros", uid), {
+    fotoRechazada: rechazada,
+    ...(rechazada
+      ? {
+          advertencia:
+            "Tu foto de perfil no muestra tu cara. Súbela de nuevo con una foto tuya para volver a publicar.",
+        }
+      : { advertencia: deleteField() }),
+  });
+  await refrescarSellosDelAutor(uid, {});
+}
+
+/**
+ * Borra una cuenta y todo lo que publicó.
+ *
+ * Se lleva por delante sus anuncios a propósito. Dejar el perfil borrado pero
+ * los anuncios en pie deja fichas con el nombre y el teléfono de alguien que
+ * ya no está, y sin perfil detrás no hay manera de comprobar nada: sería la
+ * peor versión posible de las dos cosas.
+ *
+ * Lo que no se puede tocar desde aquí es su acceso a Firebase: la cuenta de
+ * autenticación sigue existiendo y la persona podrá entrar, pero se encontrará
+ * sin perfil y tendrá que registrarse de nuevo, esta vez con una foto que sí
+ * sea suya.
+ */
+export async function borrarMiembro(uid: string): Promise<number> {
+  let borradas = 0;
+  try {
+    const suyas = await getDocs(
+      query(collection(db(), "publicaciones"), where("autorUid", "==", uid), limitar(300)),
+    );
+    if (!suyas.empty) {
+      const lote = writeBatch(db());
+      suyas.docs.forEach((documento) => lote.delete(documento.ref));
+      await lote.commit();
+      borradas = suyas.size;
+    }
+  } catch (error) {
+    console.warn("No se pudieron borrar las publicaciones del miembro", error);
+  }
+
+  await deleteDoc(doc(db(), "miembros", uid));
+  return borradas;
+}
+
 /* ----------------------------------------------------------------- */
 /* Publicaciones, para las estadísticas                               */
 /* ----------------------------------------------------------------- */

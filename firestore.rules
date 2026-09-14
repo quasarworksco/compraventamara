@@ -44,6 +44,22 @@ service cloud.firestore {
      * significa citar a un vecino para un intercambio de efectivo en mano,
      * así que no basta con estar registrado.
      */
+    /**
+     * La foto de perfil de quien escribe sigue en pie.
+     *
+     * La foto es lo que permite reconocer a alguien al cerrar un trato en la
+     * calle. Cuando la administración marca que no es de la persona, la cuenta
+     * queda en pausa hasta que la cambie: puede entrar y arreglar su perfil,
+     * pero no publicar ni escribir en el chat. Si esto solo lo comprobara la
+     * interfaz, bastaría con abrir la consola del navegador para saltárselo.
+     */
+    function fotoEnPie() {
+      return autenticado()
+        && exists(/databases/$(database)/documents/miembros/$(request.auth.uid))
+        && get(/databases/$(database)/documents/miembros/$(request.auth.uid))
+             .data.get('fotoRechazada', false) == false;
+    }
+
     function miembroVerificado() {
       return autenticado()
         && exists(/databases/$(database)/documents/miembros/$(request.auth.uid))
@@ -143,7 +159,19 @@ service cloud.firestore {
             && request.resource.data.verificado == resource.data.verificado
             && request.resource.data.get('vendedorSeguro', false)
                  == resource.data.get('vendedorSeguro', false)
-            && request.resource.data.codigo == resource.data.codigo);
+            && request.resource.data.codigo == resource.data.codigo
+            // La foto rechazada solo se apaga subiendo otra distinta. Sin esta
+            // condición, la pausa se levantaría borrando un campo desde la
+            // consola y la foto falsa seguiría ahí.
+            && (request.resource.data.get('fotoRechazada', false)
+                  == resource.data.get('fotoRechazada', false)
+                || (request.resource.data.get('fotoRechazada', false) == false
+                    && request.resource.data.fotoUrl is string
+                    && request.resource.data.fotoUrl.size() > 0
+                    && request.resource.data.fotoUrl != resource.data.fotoUrl))
+            // La advertencia la pone y la quita la administración.
+            && request.resource.data.get('advertencia', '')
+                 == resource.data.get('advertencia', ''));
 
       allow delete: if esAdmin();
     }
@@ -167,9 +195,15 @@ service cloud.firestore {
       let tipo = request.resource.data.tipo;
       let vence = request.resource.data.venceEn;
       return vence is int
-        && (tipo == 'negocio'
+        // Los negocios del directorio y las fichas de mototaxi y taxi no
+        // caducan: son de quién es alguien, no de algo que se acaba.
+        && (tipo == 'negocio' || tipo == 'mototaxi'
             || (tipo == 'divisa' && vence <= request.time.toMillis() + 25200000)
-            || (tipo != 'divisa' && vence <= request.time.toMillis() + 2764800000));
+            // Una carrera pedida vive dos horas. Tres de tope para que un
+            // reloj desajustado no rechace una petición legítima.
+            || (tipo == 'carrera' && vence <= request.time.toMillis() + 10800000)
+            || (tipo != 'divisa' && tipo != 'carrera'
+                && vence <= request.time.toMillis() + 2764800000));
     }
 
     // Publicaciones: mercado, negocios, mototaxis, dólares y rifas.
@@ -178,11 +212,13 @@ service cloud.firestore {
 
       allow create: if autenticado()
         && request.resource.data.autorUid == request.auth.uid
+        && fotoEnPie()
         && autorCoincideConSuPerfil()
         && request.resource.data.titulo is string
         && request.resource.data.titulo.size() > 0
         && request.resource.data.titulo.size() <= 200
-        && request.resource.data.tipo in ['producto', 'negocio', 'mototaxi', 'divisa', 'rifa']
+        && request.resource.data.tipo in
+             ['producto', 'negocio', 'mototaxi', 'divisa', 'rifa', 'carrera']
         && (request.resource.data.tipo != 'divisa' || miembroVerificado())
         // Sin esto, una fecha de creación en el futuro dejaría el anuncio
         // clavado en el primer puesto de todos los listados para siempre.
@@ -224,6 +260,7 @@ service cloud.firestore {
 
       allow create: if autenticado()
         && sala == 'general'
+        && fotoEnPie()
         && request.resource.data.autorUid == request.auth.uid
         && request.resource.data.autorCodigo ==
              get(/databases/$(database)/documents/miembros/$(request.auth.uid)).data.codigo
