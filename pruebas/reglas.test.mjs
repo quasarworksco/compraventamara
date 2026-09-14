@@ -486,6 +486,36 @@ probar("Un tipo inventado sigue sin entrar", () =>
   assertFails(addDoc(collection(ana, "publicaciones"),
     anuncioDe(perfilAna, { tipo: "loquesea" }))));
 
+/* --- Rifas: el sorteo puede ser dentro de meses --- */
+
+const rifaDe = (perfil, dias, extra = {}) => {
+  // Lo mismo que calcula la aplicación: el sorteo más un día de gracia para
+  // anunciar al ganador.
+  const sorteo = new Date(Date.now() + dias * 86400000);
+  const fechaSorteo = sorteo.toISOString().slice(0, 10);
+  return anuncioDe(perfil, {
+    tipo: "rifa", titulo: "Rifa de una nevera", premio: "Una nevera",
+    precioNumero: 1, moneda: "USD", loteria: "Triple Lago",
+    fechaSorteo, totalNumeros: 100, numerosDisponibles: 100,
+    venceEn: new Date(`${fechaSorteo}T23:59:59Z`).getTime() + 86400000,
+    ...extra,
+  });
+};
+
+probar("Una rifa que sortea la semana que viene", () =>
+  assertSucceeds(addDoc(collection(ana, "publicaciones"), rifaDe(perfilAna, 7))));
+
+// El caso que rompía: quien rifa para Navidad en octubre veía
+// "Firestore rechazó la operación" y no había manera de publicarla.
+probar("Una rifa que sortea dentro de dos meses", () =>
+  assertSucceeds(addDoc(collection(ana, "publicaciones"), rifaDe(perfilAna, 60))));
+
+probar("Una rifa que sortea dentro de diez meses", () =>
+  assertSucceeds(addDoc(collection(ana, "publicaciones"), rifaDe(perfilAna, 300))));
+
+probar("Pero no una rifa a cinco años vista", () =>
+  assertFails(addDoc(collection(ana, "publicaciones"), rifaDe(perfilAna, 1825))));
+
 /* --- Tasas y visitantes --- */
 
 probar("Un visitante sin cuenta puede leer las publicaciones", () =>

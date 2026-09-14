@@ -31,6 +31,13 @@ export function mensajeFirestore(error: unknown, accion: Accion = "guardar"): st
           "dueño. " +
           comun
         );
+      case "publicar":
+        return (
+          "Firestore rechazó la publicación. Si tu cuenta está en pausa porque la " +
+          "administración pidió que cambies tu foto de perfil, cámbiala y vuelve a " +
+          "intentarlo. " +
+          comun
+        );
       default:
         return `Firestore rechazó la operación. ${comun}`;
     }

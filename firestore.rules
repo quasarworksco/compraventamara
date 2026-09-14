@@ -202,7 +202,13 @@ service cloud.firestore {
             // Una carrera pedida vive dos horas. Tres de tope para que un
             // reloj desajustado no rechace una petición legítima.
             || (tipo == 'carrera' && vence <= request.time.toMillis() + 10800000)
-            || (tipo != 'divisa' && tipo != 'carrera'
+            // Una rifa vive hasta el día después de su sorteo, y un sorteo se
+            // anuncia con meses de antelación: quien rifa para Navidad empieza
+            // a vender los números en octubre. Con el tope de 32 días del
+            // marketplace, esa rifa era imposible de publicar. Se deja un año
+            // largo, que es el margen en el que una rifa sigue siendo creíble.
+            || (tipo == 'rifa' && vence <= request.time.toMillis() + 34560000000)
+            || (tipo != 'divisa' && tipo != 'carrera' && tipo != 'rifa'
                 && vence <= request.time.toMillis() + 2764800000));
     }
 

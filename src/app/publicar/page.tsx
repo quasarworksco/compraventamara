@@ -33,7 +33,12 @@ import {
 } from "@/components/ui";
 import { useSesion } from "@/lib/auth";
 import { mensajeFirestore } from "@/lib/errores";
-import { ETIQUETA_METODO, nombreDivisa, normalizarPlaca } from "@/lib/formato";
+import {
+  ETIQUETA_METODO,
+  diasHasta,
+  nombreDivisa,
+  normalizarPlaca,
+} from "@/lib/formato";
 import {
   CATEGORIAS_MERCADO,
   CATEGORIAS_NEGOCIO,
@@ -335,6 +340,13 @@ function Formulario({
       if (premio.trim().length < 3) return "Indica qué se rifa.";
       if (!Number(precioNumero)) return "Indica el precio del número.";
       if (!fechaSorteo) return "Indica el día del sorteo.";
+      // Se comprueba aquí para no hacer el viaje a Firestore y volver con un
+      // "permiso denegado" que no le explica nada a nadie.
+      const dias = diasHasta(fechaSorteo);
+      if (dias < 0) return "Ese día ya pasó. Pon la fecha del sorteo que viene.";
+      if (dias > 365) {
+        return "El sorteo no puede estar a más de un año. Publícala cuando se acerque.";
+      }
     }
     if (tipo === "mototaxi") {
       if (!modelo.trim()) {
