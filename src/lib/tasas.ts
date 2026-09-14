@@ -30,10 +30,30 @@ const SIN_DATOS: Tasas = {
 const CLAVE_CACHE = "mara-tasas";
 const VIDA_CACHE = 30 * 60 * 1000;
 
-type Lectura = { bcv: number | null; binance: number | null };
+/**
+ * Lo que una fuente sabe, con la fecha que ella misma declara.
+ *
+ * La fecha propia es la parte importante y la que faltaba. Una fuente puede
+ * contestar al instante y estar sirviendo la tasa de hace cuatro días: si solo
+ * se mira que respondió, esa cifra vieja gana sobre una buena cargada a mano.
+ */
+type Lectura = {
+  bcv: number | null;
+  binance: number | null;
+  /** Cuándo dice la fuente que cambió cada cifra, si lo dice. */
+  bcvEn?: number | null;
+  binanceEn?: number | null;
+};
 
 function numero(valor: unknown): number | null {
   return typeof valor === "number" && Number.isFinite(valor) && valor > 0 ? valor : null;
+}
+
+/** Convierte una fecha en texto a milisegundos, o null si no se entiende. */
+function fecha(valor: unknown): number | null {
+  if (typeof valor !== "string" || valor.length === 0) return null;
+  const marca = Date.parse(valor);
+  return Number.isFinite(marca) ? marca : null;
 }
 
 /** dolarapi: devuelve una lista con una entrada por fuente. */
@@ -41,16 +61,34 @@ async function desdeDolarApi(señal: AbortSignal): Promise<Lectura | null> {
   const respuesta = await fetch("https://ve.dolarapi.com/v1/dolares", { signal: señal });
   if (!respuesta.ok) return null;
 
-  const datos = (await respuesta.json()) as { fuente?: string; promedio?: number }[];
+  const datos = (await respuesta.json()) as {
+    fuente?: string;
+    promedio?: number;
+    fechaActualizacion?: string;
+  }[];
   if (!Array.isArray(datos)) return null;
 
-  const buscar = (fuente: string) =>
-    numero(datos.find((d) => d.fuente === fuente)?.promedio);
+  const entrada = (fuente: string) => datos.find((d) => d.fuente === fuente);
+  const oficial = entrada("oficial");
+  const paralelo = entrada("paralelo") ?? entrada("bitcoin");
 
-  return { bcv: buscar("oficial"), binance: buscar("paralelo") ?? buscar("bitcoin") };
+  return {
+    bcv: numero(oficial?.promedio),
+    binance: numero(paralelo?.promedio),
+    // Esta fecha ya venía en la respuesta y se estaba tirando a la basura.
+    bcvEn: fecha(oficial?.fechaActualizacion),
+    binanceEn: fecha(paralelo?.fechaActualizacion),
+  };
 }
 
-/** pydolarve: devuelve los monitores en la raíz del objeto. */
+/** Lee un monitor de pydolarve, que anida el precio y su fecha. */
+function monitorPyDolar(nodo: unknown): { precio: number | null; en: number | null } {
+  if (!nodo || typeof nodo !== "object") return { precio: null, en: null };
+  const m = nodo as { price?: unknown; last_update?: unknown };
+  return { precio: numero(m.price), en: fecha(m.last_update) };
+}
+
+/** pydolarve v2. */
 async function desdePyDolar(señal: AbortSignal): Promise<Lectura | null> {
   const respuesta = await fetch("https://pydolarve.org/api/v2/tipo-cambio?currency=usd", {
     signal: señal,
@@ -58,18 +96,69 @@ async function desdePyDolar(señal: AbortSignal): Promise<Lectura | null> {
   if (!respuesta.ok) return null;
 
   const datos = (await respuesta.json()) as Record<string, unknown>;
-  const precio = (clave: string) => {
-    const nodo = datos[clave] ?? (datos.monitors as Record<string, unknown> | undefined)?.[clave];
-    if (nodo && typeof nodo === "object" && "price" in nodo) {
-      return numero((nodo as { price?: unknown }).price);
-    }
-    return null;
-  };
+  const sacar = (clave: string) =>
+    monitorPyDolar(datos[clave] ?? (datos.monitors as Record<string, unknown> | undefined)?.[clave]);
 
-  return { bcv: precio("bcv"), binance: precio("binance") ?? precio("enparalelovzla") };
+  const bcv = sacar("bcv");
+  const paralelo = sacar("binance").precio !== null ? sacar("binance") : sacar("enparalelovzla");
+
+  return { bcv: bcv.precio, binance: paralelo.precio, bcvEn: bcv.en, binanceEn: paralelo.en };
 }
 
-const FUENTES = [desdeDolarApi, desdePyDolar];
+/**
+ * pydolarve v1.
+ *
+ * Se añade como segundo camino a la misma fuente porque la ruta v2 está
+ * fallando desde los navegadores del pueblo. No se sustituye una por otra: si
+ * mañana v2 vuelve, sigue sirviendo, y mientras tanto esta responde.
+ */
+async function desdePyDolarV1(señal: AbortSignal): Promise<Lectura | null> {
+  const respuesta = await fetch("https://pydolarve.org/api/v1/dollar", { signal: señal });
+  if (!respuesta.ok) return null;
+
+  const datos = (await respuesta.json()) as Record<string, unknown>;
+  const monitores = (datos.monitors ?? datos) as Record<string, unknown>;
+
+  const bcv = monitorPyDolar(monitores.bcv);
+  const paralelo =
+    monitorPyDolar(monitores.binance).precio !== null
+      ? monitorPyDolar(monitores.binance)
+      : monitorPyDolar(monitores.enparalelovzla);
+
+  return { bcv: bcv.precio, binance: paralelo.precio, bcvEn: bcv.en, binanceEn: paralelo.en };
+}
+
+const FUENTES = [desdeDolarApi, desdePyDolar, desdePyDolarV1];
+
+/** El nombre de cada fuente, para poder decir cuál falló. */
+const NOMBRES = ["ve.dolarapi.com", "pydolarve.org (v2)", "pydolarve.org (v1)"];
+
+/* ----------------------------------------------------------------- */
+/* Elegir entre lo que dice cada una                                  */
+/* ----------------------------------------------------------------- */
+
+interface Candidato {
+  valor: number;
+  /** Cuándo cambió la cifra, según quien la publica. */
+  en: number;
+  origen: "api" | "manual";
+}
+
+/**
+ * Se queda con la cifra más reciente, no con la primera que llegue.
+ *
+ * Este es el arreglo de fondo. Antes el respaldo manual solo entraba si TODAS
+ * las fuentes fallaban, de modo que una fuente que respondía con la tasa de
+ * hace cuatro días le ganaba a la tasa correcta cargada a mano esa mañana.
+ * Comparando fechas se resuelve solo, y además se resuelve bien el fin de
+ * semana: el BCV no publica sábado ni domingo, así que "vieja" no es lo mismo
+ * que "mala" y no se puede descartar por un simple umbral de horas.
+ */
+function masReciente(a: Candidato | null, b: Candidato | null): Candidato | null {
+  if (!a) return b;
+  if (!b) return a;
+  return b.en > a.en ? b : a;
+}
 
 async function leerRespaldo(): Promise<Tasas | null> {
   if (!firebaseListo) return null;
@@ -155,44 +244,90 @@ export function useTasas(): { tasas: Tasas; cargando: boolean } {
       }
 
       /*
-       * Las fuentes se combinan en vez de tomar la primera que conteste algo.
+       * Se pregunta a todas y se compara, en vez de quedarse con la primera.
        *
        * Antes se aceptaba la primera respuesta que trajera cualquiera de las
-       * dos cifras y se dejaba de preguntar. Eso hacía que si la primera fuente
-       * cambiaba el nombre de un campo —y la del BCV es justo el que cambia—,
-       * la portada se quedaba con el paralelo y sin la tasa oficial, teniendo
-       * la segunda fuente la cifra buena a un paso. Ahora cada hueco se
-       * rellena con la primera fuente que lo tenga.
+       * dos cifras y se dejaba de preguntar, y el respaldo manual solo entraba
+       * si TODAS fallaban. Dos consecuencias, las dos vistas en producción: si
+       * una fuente cambiaba el nombre de un campo, la portada se quedaba sin
+       * esa cifra teniendo otra fuente la buena a un paso; y una fuente que
+       * respondía con la tasa de hace cuatro días le ganaba a la tasa correcta
+       * cargada a mano esa misma mañana.
+       *
+       * Ahora cada cifra se decide por su fecha, y el respaldo manual compite
+       * de igual a igual.
        */
-      let bcv: number | null = null;
-      let binance: number | null = null;
+      let bcv: Candidato | null = null;
+      let binance: Candidato | null = null;
+      const ahora = Date.now();
 
-      for (const fuente of FUENTES) {
-        if (bcv !== null && binance !== null) break;
-        try {
-          const lectura = await fuente(control.signal);
-          if (!lectura) continue;
-          bcv = bcv ?? lectura.bcv;
-          binance = binance ?? lectura.binance;
-        } catch {
-          // CORS, la fuente caída o la red del visitante: se prueba la siguiente.
+      const lecturas = await Promise.all(
+        FUENTES.map(async (fuente) => {
+          try {
+            return await fuente(control.signal);
+          } catch {
+            // CORS, la fuente caída o la red del visitante: cuenta como nada.
+            return null;
+          }
+        }),
+      );
+
+      for (const lectura of lecturas) {
+        if (!lectura) continue;
+        if (lectura.bcv !== null) {
+          // Sin fecha propia, lo más honesto es suponer que es de ahora: es lo
+          // que haría cualquiera al leerla, y deja que otra con fecha explícita
+          // y más reciente la desbanque.
+          bcv = masReciente(bcv, {
+            valor: lectura.bcv,
+            en: lectura.bcvEn ?? ahora,
+            origen: "api",
+          });
+        }
+        if (lectura.binance !== null) {
+          binance = masReciente(binance, {
+            valor: lectura.binance,
+            en: lectura.binanceEn ?? ahora,
+            origen: "api",
+          });
         }
       }
 
-      if (bcv !== null || binance !== null) {
+      // El respaldo manual entra siempre, no solo cuando todo lo demás falla.
+      const respaldo = await leerRespaldo();
+      if (respaldo?.bcv) {
+        bcv = masReciente(bcv, {
+          valor: respaldo.bcv,
+          en: respaldo.actualizadoEn,
+          origen: "manual",
+        });
+      }
+      if (respaldo?.binance) {
+        binance = masReciente(binance, {
+          valor: respaldo.binance,
+          en: respaldo.actualizadoEn,
+          origen: "manual",
+        });
+      }
+
+      if (bcv || binance) {
+        const origenes = [bcv?.origen, binance?.origen].filter(Boolean);
         const resultado: Tasas = {
-          bcv,
-          binance,
-          actualizadoEn: Date.now(),
-          origen: "api",
+          bcv: bcv?.valor ?? null,
+          binance: binance?.valor ?? null,
+          bcvEn: bcv?.en,
+          binanceEn: binance?.en,
+          actualizadoEn: ahora,
+          origen: origenes.every((o) => o === origenes[0])
+            ? (origenes[0] as "api" | "manual")
+            : "mixto",
         };
         guardarCache(resultado);
         if (vigente) setTasas(resultado);
         return;
       }
 
-      const respaldo = await leerRespaldo();
-      if (vigente) setTasas(respaldo ?? SIN_DATOS);
+      if (vigente) setTasas(SIN_DATOS);
     })().finally(() => {
       if (vigente) setCargando(false);
     });
@@ -215,23 +350,30 @@ export function useTasas(): { tasas: Tasas; cargando: boolean } {
  * comprueba desde su teléfono en un toque y sabe si tiene que cargar la tasa a
  * mano o si el problema es otro.
  */
-export async function probarFuentes(): Promise<
-  { nombre: string; bcv: number | null; binance: number | null; fallo?: string }[]
-> {
+export interface PruebaDeFuente {
+  nombre: string;
+  bcv: number | null;
+  binance: number | null;
+  /** La fecha que declara la propia fuente, si la declara. */
+  bcvEn?: number | null;
+  binanceEn?: number | null;
+  fallo?: string;
+}
+
+export async function probarFuentes(): Promise<PruebaDeFuente[]> {
   const control = new AbortController();
-  const nombres = ["ve.dolarapi.com", "pydolarve.org"];
 
   return Promise.all(
     FUENTES.map(async (fuente, indice) => {
       try {
         const lectura = await fuente(control.signal);
         if (!lectura) {
-          return { nombre: nombres[indice], bcv: null, binance: null, fallo: "Respondió vacío." };
+          return { nombre: NOMBRES[indice], bcv: null, binance: null, fallo: "Respondió vacío." };
         }
-        return { nombre: nombres[indice], ...lectura };
+        return { nombre: NOMBRES[indice], ...lectura };
       } catch (error) {
         return {
-          nombre: nombres[indice],
+          nombre: NOMBRES[indice],
           bcv: null,
           binance: null,
           fallo:

@@ -4,13 +4,17 @@
 import Link from "next/link";
 
 import { formatearTasa, hace } from "@/lib/formato";
-import { useContador } from "@/lib/reloj";
+import { useAhora, useContador } from "@/lib/reloj";
 import { useTasas } from "@/lib/tasas";
 import { IconChevronRight } from "./icons";
 import { Esqueleto } from "./ui";
 
 export function TasasDelDia() {
   const { tasas, cargando } = useTasas();
+  // La hora entra como dato en vez de leerse al pintar: es la regla de la casa
+  // —dos renders seguidos tienen que dar lo mismo— y de paso el aviso de tasa
+  // vieja se enciende solo, sin recargar.
+  const ahora = useAhora(5 * 60_000);
 
   return (
     <section aria-labelledby="titulo-tasas" className="px-4">
@@ -18,11 +22,8 @@ export function TasasDelDia() {
         <h2 id="titulo-tasas" className="text-sm font-semibold text-fg-muted">
           El dólar hoy
         </h2>
-        {tasas.actualizadoEn > 0 ? (
-          <p className="text-xs text-fg-subtle">
-            {tasas.origen === "manual" ? "Cargada a mano · " : ""}
-            {hace(tasas.actualizadoEn)}
-          </p>
+        {tasas.origen === "manual" ? (
+          <p className="text-xs text-fg-subtle">Cargada a mano</p>
         ) : null}
       </div>
 
@@ -31,12 +32,16 @@ export function TasasDelDia() {
           nombre="BCV"
           detalle="Tasa oficial"
           valor={tasas.bcv}
+          desde={tasas.bcvEn}
+          ahora={ahora}
           cargando={cargando}
         />
         <TarjetaTasa
           nombre="Binance"
           detalle="Referencia P2P"
           valor={tasas.binance}
+          desde={tasas.binanceEn}
+          ahora={ahora}
           cargando={cargando}
           acento
         />
@@ -57,12 +62,17 @@ function TarjetaTasa({
   nombre,
   detalle,
   valor,
+  desde,
+  ahora,
   cargando,
   acento = false,
 }: {
   nombre: string;
   detalle: string;
   valor: number | null;
+  /** Cuándo cambió esta cifra, según quien la publica. */
+  desde?: number;
+  ahora: number;
   cargando: boolean;
   acento?: boolean;
 }) {
@@ -84,7 +94,30 @@ function TarjetaTasa({
           {formatearTasa(animado ?? valor)}
         </p>
       )}
-      <p className="mt-0.5 text-xs text-fg-muted">{detalle}</p>
+      {/* La edad de la cifra, no la de nuestra consulta. Es la diferencia entre
+          "esta tasa es de hace tres minutos" y la verdad, que puede ser que la
+          fuente lleva días sin moverla. Quien vende un carro en dólares merece
+          saberlo antes de ponerle precio. */}
+      <p className="mt-0.5 text-xs text-fg-muted">
+        {detalle}
+        {valor !== null && desde ? (
+          <span className={vieja(desde, ahora) ? "text-sell" : "text-fg-subtle"}>
+            {" · "}
+            {hace(desde)}
+          </span>
+        ) : null}
+      </p>
     </div>
   );
+}
+
+/**
+ * Una cifra que lleva demasiado quieta.
+ *
+ * Dos días y medio, no uno: el BCV no publica sábados ni domingos, así que un
+ * lunes por la mañana la tasa del viernes es la correcta y marcarla en rojo
+ * sería asustar sin motivo.
+ */
+function vieja(desde: number, ahora: number): boolean {
+  return ahora - desde > 60 * 60 * 1000 * 60;
 }

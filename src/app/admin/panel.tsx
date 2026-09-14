@@ -94,7 +94,12 @@ import {
   estaVigente,
 } from "@/lib/publicaciones";
 import { useAhora } from "@/lib/reloj";
-import { guardarTasasManuales, probarFuentes, useTasas } from "@/lib/tasas";
+import {
+  guardarTasasManuales,
+  probarFuentes,
+  useTasas,
+  type PruebaDeFuente,
+} from "@/lib/tasas";
 import type { Miembro, Publicacion, Reporte, TipoPublicacion } from "@/lib/types";
 
 type Pestana =
@@ -1539,9 +1544,7 @@ function SeccionTasas() {
   const [listo, setListo] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
   const [probando, setProbando] = useState(false);
-  const [prueba, setPrueba] = useState<
-    { nombre: string; bcv: number | null; binance: number | null; fallo?: string }[] | null
-  >(null);
+  const [prueba, setPrueba] = useState<PruebaDeFuente[] | null>(null);
 
   async function probar() {
     setProbando(true);
@@ -1576,11 +1579,24 @@ function SeccionTasas() {
       <div className="rounded-card border border-line bg-surface p-3.5 text-sm shadow-card">
         <p className="font-semibold text-fg">Lo que se está mostrando ahora</p>
         <p className="mt-1 text-fg-muted">
-          BCV: {tasas.bcv ?? "sin dato"} · Binance: {tasas.binance ?? "sin dato"}
+          BCV: {tasas.bcv ?? "sin dato"}
+          {tasas.bcvEn ? ` (de ${hace(tasas.bcvEn)})` : ""} · Binance:{" "}
+          {tasas.binance ?? "sin dato"}
+          {tasas.binanceEn ? ` (de ${hace(tasas.binanceEn)})` : ""}
         </p>
         <p className="mt-0.5 text-xs text-fg-subtle">
-          Origen: {tasas.origen === "api" ? "fuente automática" : tasas.origen === "manual" ? "respaldo manual" : "ninguno"}
+          Origen:{" "}
+          {tasas.origen === "api"
+            ? "fuente automática"
+            : tasas.origen === "manual"
+              ? "respaldo manual"
+              : tasas.origen === "mixto"
+                ? "una de cada sitio"
+                : "ninguno"}
         </p>
+        {/* La fecha es de la cifra, no de la consulta. Si dice cuatro días, la
+            fuente lleva cuatro días sin moverla y toca cargarla a mano: lo que
+            escribas aquí gana automáticamente por ser más reciente. */}
       </div>
 
       {/* Desde fuera no hay manera de saber si una fuente pública dejó de
@@ -1601,9 +1617,20 @@ function SeccionTasas() {
                 {r.fallo ? (
                   <p className="text-danger">{r.fallo}</p>
                 ) : (
-                  <p className="tabular-nums text-fg-muted">
-                    BCV: {r.bcv ?? "no lo trae"} · Binance: {r.binance ?? "no lo trae"}
-                  </p>
+                  <>
+                    <p className="tabular-nums text-fg-muted">
+                      BCV: {r.bcv ?? "no lo trae"} · Binance: {r.binance ?? "no lo trae"}
+                    </p>
+                    {/* Responder no es lo mismo que estar al día. */}
+                    {r.bcvEn || r.binanceEn ? (
+                      <p className="text-fg-subtle">
+                        Ella dice que el BCV es {r.bcvEn ? `de ${hace(r.bcvEn)}` : "sin fecha"}
+                        {r.binanceEn ? ` y Binance de ${hace(r.binanceEn)}` : ""}
+                      </p>
+                    ) : (
+                      <p className="text-fg-subtle">No dice de cuándo son.</p>
+                    )}
+                  </>
                 )}
               </li>
             ))}

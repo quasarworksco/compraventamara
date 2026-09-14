@@ -416,10 +416,20 @@ export interface Tasas {
   bcv: number | null;
   /** Referencia del mercado P2P de Binance. */
   binance: number | null;
-  /** Marca de tiempo de la última actualización conseguida. */
+  /**
+   * Cuándo cambió de verdad cada cifra, según quien la publica.
+   *
+   * No es lo mismo que `actualizadoEn`, y confundirlos fue un error con
+   * consecuencias: la portada decía "hace 3 minutos" refiriéndose a cuándo
+   * habíamos preguntado, mientras la cifra que enseñaba llevaba días parada.
+   * El visitante leía eso como "esta tasa es de hace tres minutos".
+   */
+  bcvEn?: number;
+  binanceEn?: number;
+  /** Cuándo miramos nosotros. Sirve para la caché, no para presumir de fresco. */
   actualizadoEn: number;
-  /** De dónde salieron: la API pública o el respaldo manual de un admin. */
-  origen: "api" | "manual" | "sin-datos";
+  /** De dónde salió cada cifra: la fuente pública, el respaldo manual, o mezcla. */
+  origen: "api" | "manual" | "mixto" | "sin-datos";
 }
 
 /* ----------------------------------------------------------------- */
