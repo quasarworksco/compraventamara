@@ -410,6 +410,82 @@ probar("Un visitante sin cuenta NO puede reportar", () => {
   return assertFails(setDoc(doc(visitante, "reportes", idReporte(r)), r));
 });
 
+/* --- Foto rechazada: la cuenta queda en pausa --- */
+
+// Dina tiene la foto de otra persona y la administración la marcó.
+const DINA = "uid-dina";
+const perfilDina = {
+  uid: DINA, codigo: "MC-00004", nombre: "Dina", apellido: "Chirinos",
+  telefono: "584249999999", fotoUrl: "https://res.cloudinary.com/x/no-es-ella.jpg",
+  verificado: true, fotoRechazada: true,
+  advertencia: "Tu foto de perfil no muestra tu cara.",
+  rol: "miembro", creadoEn: Date.now(),
+};
+await entorno.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), "miembros", DINA), perfilDina);
+});
+const dina = entorno.authenticatedContext(DINA).firestore();
+
+probar("Dina, con la foto rechazada, NO puede publicar", () =>
+  assertFails(addDoc(collection(dina, "publicaciones"), anuncioDe(perfilDina))));
+
+probar("Dina tampoco puede escribir en el chat", () =>
+  assertFails(addDoc(collection(dina, "salas", "general", "mensajes"), mensajeDe(perfilDina))));
+
+probar("Dina NO puede levantarse la pausa sin cambiar la foto", () =>
+  assertFails(updateDoc(doc(dina, "miembros", DINA), { fotoRechazada: false })));
+
+probar("Dina NO se quita la advertencia que le dejó la administración", () =>
+  assertFails(updateDoc(doc(dina, "miembros", DINA), { advertencia: "" })));
+
+probar("Dina sí se reactiva subiendo una foto distinta", () =>
+  assertSucceeds(updateDoc(doc(dina, "miembros", DINA), {
+    fotoUrl: "https://res.cloudinary.com/x/dina-de-verdad.jpg", fotoRechazada: false,
+  })));
+
+probar("Y entonces sí publica", () =>
+  assertSucceeds(addDoc(collection(dina, "publicaciones"), anuncioDe({
+    ...perfilDina, fotoUrl: "https://res.cloudinary.com/x/dina-de-verdad.jpg",
+  }))));
+
+probar("El dueño sí pone una cuenta en pausa", () =>
+  assertSucceeds(updateDoc(doc(dueno, "miembros", DINA), {
+    fotoRechazada: true, advertencia: "Tu foto no muestra tu cara.",
+  })));
+
+probar("El dueño sí puede borrar una cuenta", () =>
+  assertSucceeds(deleteDoc(doc(dueno, "miembros", DINA))));
+
+/* --- Transporte y carreras --- */
+
+probar("Una ficha de mototaxi no caduca", () =>
+  assertSucceeds(addDoc(collection(ana, "publicaciones"), anuncioDe(perfilAna, {
+    tipo: "mototaxi", titulo: "Mototaxi · Ana", clase: "mototaxi",
+    modelo: "Bera BR-150", placa: "AC5H31A", cobertura: ["El Moján"],
+    tarifaDesde: 1, moneda: "USD", disponible: true,
+    venceEn: new Date("2100-01-01T00:00:00Z").getTime(),
+  }))));
+
+probar("Ana pide una carrera", () =>
+  assertSucceeds(addDoc(collection(ana, "publicaciones"), anuncioDe(perfilAna, {
+    tipo: "carrera", titulo: "Carrera: El Moján → Santa Cruz",
+    origen: "El Moján", destino: "Santa Cruz", prefiere: "cualquiera",
+    pago: 2, moneda: "USD",
+    venceEn: Date.now() + 2 * 3600000,
+  }))));
+
+probar("Nadie deja una carrera pedida colgada un mes", () =>
+  assertFails(addDoc(collection(ana, "publicaciones"), anuncioDe(perfilAna, {
+    tipo: "carrera", titulo: "Carrera eterna",
+    origen: "El Moján", destino: "Santa Cruz", prefiere: "cualquiera",
+    pago: 2, moneda: "USD",
+    venceEn: Date.now() + 30 * 86400000,
+  }))));
+
+probar("Un tipo inventado sigue sin entrar", () =>
+  assertFails(addDoc(collection(ana, "publicaciones"),
+    anuncioDe(perfilAna, { tipo: "loquesea" }))));
+
 /* --- Tasas y visitantes --- */
 
 probar("Un visitante sin cuenta puede leer las publicaciones", () =>

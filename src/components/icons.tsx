@@ -419,6 +419,17 @@ export function IconCarro(props: IconProps) {
   );
 }
 
+/** Pedir: una mano levantada, como quien para una moto en la calle. */
+export function IconMano(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M9.2 11V4.8a1.4 1.4 0 0 1 2.8 0V10" />
+      <path d="M12 9.6V3.9a1.4 1.4 0 0 1 2.8 0V10" />
+      <path d="M14.8 10.3V6.2a1.4 1.4 0 0 1 2.8 0V14a6.2 6.2 0 0 1-6.2 6.2h-.6a5.6 5.6 0 0 1-4.4-2.2l-2.5-3.3a1.4 1.4 0 0 1 2-1.9l2.3 2" />
+    </Icon>
+  );
+}
+
 export function IconArrowUp(props: IconProps) {
   return (
     <Icon {...props}>

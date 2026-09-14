@@ -27,11 +27,14 @@ import { normalizarBusqueda } from "./formato";
 import {
   DIAS_AVISO_VENCIMIENTO,
   DIAS_VIGENCIA,
+  HORAS_VIGENCIA_CARRERA,
   HORAS_VIGENCIA_DOLAR,
+  esPermanente,
   MS_POR_DIA,
   MS_POR_HORA,
   type Miembro,
   type Publicacion,
+  type PublicacionCarrera,
   type PublicacionDivisa,
   type TipoPublicacion,
 } from "./types";
@@ -180,9 +183,8 @@ export function usePublicacion(id: string) {
  */
 type OmitirEnCadaTipo<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
-/** Campos que aporta quien publica; el resto se deriva de su perfil. */
-export type BorradorPublicacion = OmitirEnCadaTipo<
-  Publicacion,
+/** Lo que la plataforma calcula por su cuenta y quien publica no escribe. */
+type CamposDerivados =
   | "id"
   | "creadaEn"
   | "actualizadaEn"
@@ -196,7 +198,20 @@ export type BorradorPublicacion = OmitirEnCadaTipo<
   | "autorTelefono"
   | "autorFoto"
   | "autorVerificado"
-  | "autorSeguro"
+  | "autorSeguro";
+
+/** Campos que aporta quien publica; el resto se deriva de su perfil. */
+export type BorradorPublicacion = OmitirEnCadaTipo<Publicacion, CamposDerivados>;
+
+/**
+ * El borrador de un subconjunto de tipos.
+ *
+ * Lo usa el formulario de publicar, que cubre lo que se ofrece pero no las
+ * carreras que se piden: esas tienen su propio camino, mucho más corto.
+ */
+export type BorradorDe<T extends TipoPublicacion> = OmitirEnCadaTipo<
+  Extract<Publicacion, { tipo: T }>,
+  CamposDerivados
 >;
 
 /**
@@ -220,12 +235,15 @@ function calcularVencimiento(
   switch (tipo) {
     case "divisa":
       return ahora + HORAS_VIGENCIA_DOLAR * MS_POR_HORA;
+    case "carrera":
+      return ahora + HORAS_VIGENCIA_CARRERA * MS_POR_HORA;
     case "rifa": {
       if (!datos.fechaSorteo) return ahora + DIAS_VIGENCIA * MS_POR_DIA;
       // Un día de gracia tras el sorteo para que se anuncie al ganador.
       return new Date(`${datos.fechaSorteo}T23:59:59Z`).getTime() + MS_POR_DIA;
     }
     case "negocio":
+    case "mototaxi":
       return AÑO_2100;
     default:
       return ahora + DIAS_VIGENCIA * MS_POR_DIA;
@@ -242,13 +260,26 @@ export function diasDeVida(publicacion: Publicacion): number {
 
 /** Verdadero cuando toca avisar al dueño de que su anuncio está por vencer. */
 export function porVencer(publicacion: Publicacion): boolean {
-  if (publicacion.tipo === "negocio") return false;
+  if (esPermanente(publicacion.tipo)) return false;
   const dias = diasDeVida(publicacion);
   return dias <= DIAS_AVISO_VENCIMIENTO && dias > 0;
 }
 
 export function estaVencida(publicacion: Publicacion): boolean {
-  return publicacion.tipo !== "negocio" && publicacion.venceEn <= Date.now();
+  return !esPermanente(publicacion.tipo) && publicacion.venceEn <= Date.now();
+}
+
+/**
+ * Verdadero mientras la publicación siga a la vista del pueblo.
+ *
+ * Reúne las dos condiciones que antes se repetían sueltas por media aplicación
+ * —que su dueño no la haya cerrado y que no se le haya pasado el plazo—, con
+ * la excepción de lo que no caduca. Tenerlo en un solo sitio es lo que evita
+ * que una sección se olvide de una de las dos y enseñe anuncios muertos.
+ */
+export function estaVigente(publicacion: Publicacion, ahora = Date.now()): boolean {
+  if (publicacion.estado !== "activa") return false;
+  return esPermanente(publicacion.tipo) || publicacion.venceEn > ahora;
 }
 
 /**
@@ -365,6 +396,55 @@ export async function publicarOfertaDivisa(
 }
 
 /**
+ * Pedir una carrera.
+ *
+ * Una sola viva por persona, igual que con las divisas: si alguien pudiera
+ * dejar cinco peticiones, el tablón de los conductores sería suyo. Volver a
+ * pedir reemplaza la anterior, que es lo que alguien quiere decir cuando pide
+ * de nuevo.
+ */
+export async function pedirCarrera(
+  borrador: BorradorDe<"carrera">,
+  autor: Miembro,
+): Promise<{ id: string; reemplazada: boolean }> {
+  const previa = await carreraActiva(autor.uid);
+  if (!previa) {
+    return { id: await crearPublicacion(borrador, autor), reemplazada: false };
+  }
+
+  const ahora = Date.now();
+  await updateDoc(doc(db(), COLECCION, previa.id), {
+    ...borrador,
+    estado: "activa",
+    actualizadaEn: ahora,
+    venceEn: ahora + HORAS_VIGENCIA_CARRERA * MS_POR_HORA,
+    autorNombre: autor.nombre,
+    autorApellido: autor.apellido,
+    autorTelefono: autor.telefono,
+    autorFoto: autor.fotoUrl,
+    autorVerificado: autor.verificado,
+    autorSeguro: autor.vendedorSeguro === true,
+  });
+
+  return { id: previa.id, reemplazada: true };
+}
+
+/** La carrera vigente de alguien, si tiene alguna pedida. */
+async function carreraActiva(uid: string): Promise<PublicacionCarrera | null> {
+  const resultado = await getDocs(
+    query(collection(db(), COLECCION), where("autorUid", "==", uid), limitar(100)),
+  );
+
+  return (
+    resultado.docs
+      .map((d) => ({ ...(d.data() as Publicacion), id: d.id }))
+      .filter((p): p is PublicacionCarrera => p.tipo === "carrera")
+      .filter((c) => estaVigente(c))
+      .sort((a, b) => b.creadaEn - a.creadaEn)[0] ?? null
+  );
+}
+
+/**
  * Corrige una publicación ya creada.
  *
  * Solo viajan los campos que su dueño puede cambiar. Quedan fuera a
@@ -408,8 +488,8 @@ export async function reabrirPublicacion(publicacion: Publicacion): Promise<void
     actualizadaEn: ahora,
     // Reabrir un anuncio vencido sin devolverle vigencia lo dejaría cerrándose
     // solo al instante siguiente.
-    ...(publicacion.tipo !== "negocio" && publicacion.venceEn <= ahora
-      ? { venceEn: ahora + DIAS_VIGENCIA * MS_POR_DIA }
+    ...(!esPermanente(publicacion.tipo) && publicacion.venceEn <= ahora
+      ? { venceEn: calcularVencimiento(publicacion.tipo) }
       : {}),
   });
 }

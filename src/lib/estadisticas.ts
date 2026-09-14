@@ -13,8 +13,10 @@
  */
 
 import { ETIQUETA_TIPO } from "./formato";
+import { estaVigente } from "./publicaciones";
 import {
   MS_POR_DIA,
+  esPermanente,
   type Miembro,
   type Publicacion,
   type PublicacionDivisa,
@@ -150,8 +152,9 @@ export function calcularResumen(
   const hace30 = ahora - DIAS_TENDENCIA * MS_POR_DIA;
   const hace7 = ahora - 7 * MS_POR_DIA;
 
-  const vigente = (p: Publicacion) =>
-    p.estado === "activa" && (p.tipo === "negocio" || p.venceEn > ahora);
+  // La vigencia sale de un solo sitio: si cada sección la calculara a su modo,
+  // una acabaría contando como vivo lo que otra ya no enseña.
+  const vigente = (p: Publicacion) => estaVigente(p, ahora);
 
   const autores = new Set(publicaciones.map((p) => p.autorUid));
 
@@ -186,7 +189,7 @@ export function calcularResumen(
       total: publicaciones.length,
       activas: publicaciones.filter(vigente).length,
       vencidas: publicaciones.filter(
-        (p) => p.tipo !== "negocio" && p.venceEn <= ahora,
+        (p) => !esPermanente(p.tipo) && p.venceEn <= ahora,
       ).length,
       cerradas: publicaciones.filter((p) => p.estado === "cerrada").length,
       cerradas30: publicaciones.filter(

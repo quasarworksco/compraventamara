@@ -108,15 +108,46 @@ function guardarCache(tasas: Tasas): void {
   }
 }
 
+/**
+ * Las tasas del día, refrescadas solas.
+ *
+ * Antes solo se consultaban al montar el componente, y eso bastaba mientras la
+ * gente entrara y saliera. No basta en un móvil: la página queda abierta en
+ * segundo plano, se vuelve a ella horas después y la cifra que se lee es la de
+ * la mañana. El dólar se mueve varias veces al día, así que una tasa vieja
+ * mostrada con seguridad es peor que no mostrar ninguna.
+ *
+ * De ahí los dos disparos: cada media hora mientras la pestaña está abierta, y
+ * al volver a ella, que es justo cuando alguien va a mirar el número.
+ */
 export function useTasas(): { tasas: Tasas; cargando: boolean } {
   const [tasas, setTasas] = useState<Tasas>(SIN_DATOS);
   const [cargando, setCargando] = useState(true);
+  /** Sube cuando toca volver a preguntar. */
+  const [ronda, setRonda] = useState(0);
+
+  useEffect(() => {
+    const reloj = setInterval(() => setRonda((n) => n + 1), VIDA_CACHE);
+
+    const alVolver = () => {
+      if (document.visibilityState === "visible") setRonda((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", alVolver);
+
+    return () => {
+      clearInterval(reloj);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, []);
 
   useEffect(() => {
     const control = new AbortController();
     let vigente = true;
 
     (async () => {
+      // La caché sigue mandando: volver a la pestaña a los dos minutos no
+      // tiene por qué gastar una consulta. Lo que se evita es que una cifra
+      // caducada se quede en pantalla porque nadie recargó.
       const guardado = leerCache();
       if (guardado) {
         if (vigente) setTasas(guardado);
@@ -147,7 +178,7 @@ export function useTasas(): { tasas: Tasas; cargando: boolean } {
       vigente = false;
       control.abort();
     };
-  }, []);
+  }, [ronda]);
 
   return { tasas, cargando };
 }

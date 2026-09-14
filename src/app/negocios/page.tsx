@@ -23,6 +23,17 @@ import type { PublicacionNegocio } from "@/lib/types";
 
 const GRUPOS = RUBROS_NEGOCIO.map((g) => g.grupo);
 
+/**
+ * Todos los rubros de un negocio, con el principal delante.
+ *
+ * Las fichas registradas antes de que se pudiera elegir más de uno solo traen
+ * `categoria`, así que ese es el respaldo.
+ */
+function rubrosDe(negocio: PublicacionNegocio): string[] {
+  const todos = negocio.categorias?.length ? negocio.categorias : [negocio.categoria];
+  return [...new Set(todos.filter(Boolean))];
+}
+
 export default function PaginaNegocios() {
   const [busqueda, setBusqueda] = useState("");
   const [grupo, setGrupo] = useState<string | null>(null);
@@ -37,16 +48,21 @@ export default function PaginaNegocios() {
 
     return filtrados
       .filter((p): p is PublicacionNegocio => p.tipo === "negocio")
-      .filter((n) => (rubrosDelGrupo ? rubrosDelGrupo.has(n.categoria) : true));
+      // Un negocio de varios rubros aparece en todos ellos: quien busca
+      // cámaras de seguridad tiene que encontrar a la tienda de celulares que
+      // también las instala.
+      .filter((n) => (rubrosDelGrupo ? rubrosDe(n).some((r) => rubrosDelGrupo.has(r)) : true));
   }, [filtrados, grupo]);
 
   // Se agrupan por rubro para que el directorio se lea como un índice.
   const porRubro = useMemo(() => {
     const mapa = new Map<string, PublicacionNegocio[]>();
     for (const negocio of negocios) {
-      const lista = mapa.get(negocio.categoria);
-      if (lista) lista.push(negocio);
-      else mapa.set(negocio.categoria, [negocio]);
+      for (const rubro of rubrosDe(negocio)) {
+        const lista = mapa.get(rubro);
+        if (lista) lista.push(negocio);
+        else mapa.set(rubro, [negocio]);
+      }
     }
     return [...mapa.entries()].sort((a, b) => a[0].localeCompare(b[0], "es"));
   }, [negocios]);

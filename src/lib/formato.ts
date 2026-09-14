@@ -118,6 +118,7 @@ export const ETIQUETA_TIPO: Record<TipoPublicacion, string> = {
   mototaxi: "Transporte",
   divisa: "Divisas",
   rifa: "Rifa",
+  carrera: "Carrera pedida",
 };
 
 export const ETIQUETA_MOTIVO: Record<MotivoReporte, string> = Object.fromEntries(

@@ -41,7 +41,7 @@ export default function PaginaRegistro() {
 
   function validar(): Errores {
     const nuevos: Errores = {};
-    if (!fotoUrl) nuevos.foto = "La foto es obligatoria para registrarte.";
+    if (!fotoUrl) nuevos.foto = "Falta tu foto. Es obligatoria y debe ser tuya.";
     if (nombre.trim().length < 2) nuevos.nombre = "Escribe tu nombre.";
     if (apellido.trim().length < 2) nuevos.apellido = "Escribe tu apellido.";
     // 58 + 3 de operadora + 7 del abonado = 12 dígitos en Venezuela.
@@ -157,7 +157,8 @@ export default function PaginaRegistro() {
 
           <p className="text-center text-xs text-fg-subtle">
             Al registrarte aceptas que tu nombre, tu foto y tu teléfono sean visibles para los
-            demás miembros: es lo que permite cerrar tratos con confianza.
+            demás miembros: es lo que permite cerrar tratos con confianza. Si la foto no es
+            tuya, la administración pausará la cuenta hasta que la cambies.
           </p>
         </form>
       </main>

@@ -70,9 +70,14 @@ export function SelectorFoto({
         onChange={(e) => elegir(e.target.files?.[0])}
       />
 
-      <p className="max-w-60 text-center text-xs text-fg-subtle">
-        Una foto tuya, clara y de frente. Puedes tomarla ahora o elegirla de tu galería. Es
-        lo que verán los demás al cerrar un trato.
+      {/* Se dice antes, no después de rechazarla. La mayoría de las fotos que
+          había que devolver no eran mala fe: era gente que puso su logo o una
+          foto bonita porque nadie le dijo para qué servía. */}
+      <p className="max-w-72 text-center text-xs text-fg-subtle">
+        <span className="font-semibold text-fg-muted">Tiene que ser una foto tuya</span>, con
+        la cara visible y de frente. No sirve un logo, un paisaje ni la foto de otra persona:
+        es lo que verá quien vaya a encontrarse contigo para cerrar un trato, y la
+        administración la revisa.
       </p>
     </div>
   );

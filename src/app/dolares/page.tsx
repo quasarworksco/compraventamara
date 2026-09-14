@@ -173,8 +173,11 @@ export default function PaginaDolares() {
       </div>
 
       {/* Orden y filtros */}
+      {/* El grupo de orden se desplaza dentro de su propia caja. Tres pastillas
+          que no encogen empujaban la página entera en pantallas de 320 px, y
+          un desborde horizontal en móvil se siente como una página rota. */}
       <div className="mt-3 flex items-center gap-2 px-4">
-        <div className="flex flex-1 gap-1 rounded-pill bg-surface-2 p-1">
+        <div className="scroll-x flex min-w-0 flex-1 gap-1 rounded-pill bg-surface-2 p-1">
           <BotonOrden activo={orden === "recientes"} onClick={() => setOrden("recientes")}>
             Recién confirmadas
           </BotonOrden>
