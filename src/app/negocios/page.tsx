@@ -54,18 +54,45 @@ export default function PaginaNegocios() {
       .filter((n) => (rubrosDelGrupo ? rubrosDe(n).some((r) => rubrosDelGrupo.has(r)) : true));
   }, [filtrados, grupo]);
 
-  // Se agrupan por rubro para que el directorio se lea como un índice.
+  /**
+   * Se agrupan por rubro para que el directorio se lea como un índice, pero
+   * cada negocio aparece una sola vez.
+   *
+   * Poner la ficha bajo cada uno de sus rubros parecía lo lógico —así se
+   * encuentra buscando cualquiera de ellos— y era un error: la misma tienda
+   * salía tres veces en la misma pantalla, y un directorio que repite cansa y
+   * engaña sobre cuántos negocios hay de verdad. Encontrarla por cualquiera de
+   * sus rubros es cosa del filtro y del buscador, no del índice.
+   *
+   * Así que cada negocio cuelga de un solo título. Normalmente el principal;
+   * pero si hay un grupo filtrado y el principal no pertenece a él, cuelga del
+   * primero que sí —de lo contrario, al filtrar "Tecnología" aparecería la
+   * cauchera que también instala cámaras bajo el título "Cauchera", que no es
+   * lo que se estaba buscando.
+   */
   const porRubro = useMemo(() => {
+    const rubrosDelGrupo = grupo
+      ? new Set(RUBROS_NEGOCIO.find((g) => g.grupo === grupo)?.rubros ?? [])
+      : null;
+
+    const titularDe = (negocio: PublicacionNegocio) => {
+      const suyos = rubrosDe(negocio);
+      if (rubrosDelGrupo) {
+        const delGrupo = suyos.find((r) => rubrosDelGrupo.has(r));
+        if (delGrupo) return delGrupo;
+      }
+      return suyos[0];
+    };
+
     const mapa = new Map<string, PublicacionNegocio[]>();
     for (const negocio of negocios) {
-      for (const rubro of rubrosDe(negocio)) {
-        const lista = mapa.get(rubro);
-        if (lista) lista.push(negocio);
-        else mapa.set(rubro, [negocio]);
-      }
+      const rubro = titularDe(negocio);
+      const lista = mapa.get(rubro);
+      if (lista) lista.push(negocio);
+      else mapa.set(rubro, [negocio]);
     }
     return [...mapa.entries()].sort((a, b) => a[0].localeCompare(b[0], "es"));
-  }, [negocios]);
+  }, [negocios, grupo]);
 
   return (
     <>
@@ -130,6 +157,10 @@ export default function PaginaNegocios() {
 
 function TarjetaNegocio({ negocio }: { negocio: PublicacionNegocio }) {
   const logo = negocio.imagenes[0];
+  // Los rubros de más van en la ficha, que es donde no molestan. Repetir el
+  // negocio por cada uno llenaba la pantalla; decir aquí que además hace otras
+  // dos cosas ocupa una línea y cuenta lo mismo.
+  const otros = rubrosDe(negocio).slice(1);
 
   return (
     <article className="tarjeta p-3.5">
@@ -167,6 +198,12 @@ function TarjetaNegocio({ negocio }: { negocio: PublicacionNegocio }) {
             <p className="clamp-1 mt-0.5 flex items-center gap-1 text-sm text-fg-muted">
               <IconClock size={14} className="shrink-0" />
               {negocio.horario}
+            </p>
+          ) : null}
+
+          {otros.length > 0 ? (
+            <p className="clamp-2 mt-1 text-xs text-fg-subtle">
+              También: {otros.join(" · ")}
             </p>
           ) : null}
         </div>
