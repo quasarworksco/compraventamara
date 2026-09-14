@@ -113,6 +113,18 @@
     font-family: var(--font-sans);
     /* Evita el zoom accidental al tocar dos veces en móvil */
     touch-action: manipulation;
+    /*
+     * Una palabra sin espacios más ancha que la pantalla abría la página
+     * entera de lado: un "GRACIAAAAAAAS" en una descripción, una dirección
+     * escrita de corrido, un enlace pegado sin barras. Medido: 738 px de
+     * ancho en una pantalla de 360.
+     *
+     * Se pone en el cuerpo y no en cada sitio a mano porque el texto que
+     * escribe la gente aparece en veinte componentes y basta olvidarse de uno.
+     * Partir una palabra se ve peor que no partirla; un sitio que se desplaza
+     * de lado se ve roto, que es mucho peor.
+     */
+    overflow-wrap: break-word;
   }
 
   /* Los inputs de 16px evitan que iOS haga zoom al enfocarlos */
