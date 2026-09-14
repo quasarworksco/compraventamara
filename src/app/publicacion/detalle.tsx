@@ -30,6 +30,7 @@ import {
   SelloVerificado,
 } from "@/components/ui";
 import { miniatura } from "@/lib/cloudinary";
+import { descargarCartel, dibujarCartelRifa } from "@/lib/flyer";
 import { coordenadasValidas } from "@/lib/mapas";
 import { reporteDePublicacion } from "@/lib/reportes";
 import { useSesion } from "@/lib/auth";
@@ -53,7 +54,7 @@ import {
   diasDeVida,
   usePublicacion,
 } from "@/lib/publicaciones";
-import type { Publicacion } from "@/lib/types";
+import type { Publicacion, PublicacionRifa } from "@/lib/types";
 
 export function DetallePublicacion({ id }: { id: string }) {
   const { publicacion, cargando } = usePublicacion(id);
@@ -203,6 +204,11 @@ export function DetallePublicacion({ id }: { id: string }) {
               mensaje={`Hola ${publicacion.autorNombre}, te escribo por Mara Comercio. Me interesa "${publicacion.titulo}". ¿Sigue disponible?`}
             />
           )}
+
+          {/* Una rifa no se vende desde una página: se vende reenviando una
+              imagen por WhatsApp. Hasta ahora había que armarse el cartel por
+              fuera, y ese es justo el paso donde la gente abandona. */}
+          {publicacion.tipo === "rifa" ? <CartelRifa rifa={publicacion} /> : null}
 
           {/* Cada reenvío a un grupo del pueblo trae gente nueva. */}
           <BotonCompartir
@@ -407,6 +413,45 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
     <div className="min-w-0">
       <dt className="text-xs text-fg-subtle">{etiqueta}</dt>
       <dd className="font-semibold text-fg">{valor}</dd>
+    </div>
+  );
+}
+
+
+/** Arma el cartel de la rifa y lo descarga. */
+function CartelRifa({ rifa }: { rifa: PublicacionRifa }) {
+  const [trabajando, setTrabajando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  async function bajar() {
+    setTrabajando(true);
+    setFallo(null);
+    try {
+      const imagen = await dibujarCartelRifa(rifa);
+      if (!imagen) {
+        setFallo("No se pudo armar el cartel en este navegador.");
+        return;
+      }
+      descargarCartel(imagen, `rifa-${rifa.premio.replace(/\W+/g, "-").toLowerCase()}`);
+    } catch {
+      setFallo("No se pudo armar el cartel. Inténtalo otra vez.");
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Boton
+        ancho
+        variante="secundario"
+        cargando={trabajando}
+        onClick={bajar}
+        icono={<IconImage size={17} />}
+      >
+        Bajar el cartel para WhatsApp
+      </Boton>
+      {fallo ? <Aviso tono="error">{fallo}</Aviso> : null}
     </div>
   );
 }
