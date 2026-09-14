@@ -1066,7 +1066,13 @@ function FilaMiembro({
             </span>
           ) : null}
         </div>
-        <IconChevronRight size={18} className="shrink-0 text-fg-subtle" />
+        {/* Escrito y no solo insinuado con una flecha: dentro de la ficha están
+            la foto en grande y el borrado de la cuenta, y nadie va a descubrir
+            que existen tocando una fila que no dice que se pueda tocar. */}
+        <span className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-brand-600">
+          Ver ficha
+          <IconChevronRight size={15} />
+        </span>
       </button>
 
       <div className="flex flex-wrap gap-2">

@@ -53,7 +53,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // Sin `maximum-scale`: bloquear el zoom deja fuera a quien no ve bien de cerca.
+  /*
+   * Se puede acercar cuanto haga falta, pero no alejar por debajo del 100 %.
+   *
+   * Sin `maximum-scale`, porque bloquear el zoom deja fuera a quien no ve bien
+   * de cerca; con `minimum-scale`, porque alejar en un sitio pensado para el
+   * pulgar no sirve para nada y sí deja un vacío a la derecha: el navegador
+   * permite ver más allá del ancho de la página y pinta ese hueco con el color
+   * de fondo, mientras el contenido se queda pegado a la izquierda.
+   */
+  minimumScale: 1,
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
